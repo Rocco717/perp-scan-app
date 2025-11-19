@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Perp Scan v1.2 — Viewer</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",sans-serif;margin:0;background:#fafafa;color:#111}
+    .wrap{max-width:1000px;margin:0 auto;padding:20px}
+    .card{background:#fff;border:1px solid #eee;border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,0.04);margin:14px 0}
+    .card h3{margin:0;padding:12px 16px;border-bottom:1px solid #f0f0f0;font-size:16px}
+    .card .content{padding:16px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{padding:8px 10px;border-top:1px solid #eee;text-align:left;white-space:nowrap}
+    th{color:#666;font-weight:600}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    input,select,button{padding:10px 12px;border:1px solid #ddd;border-radius:10px;background:#fff}
+    button{cursor:pointer}
+    .muted{color:#666}
+    .err{color:#b00020}
+    pre{white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Perp Scan v1.2 — Viewer</h1>
+
+    <div class="card">
+      <h3>Inputs</h3>
+      <div class="content row">
+        <input id="base" style="min-width:360px" placeholder="Base URL (API)" value="https://perp-scan-live.liam-alerts.workers.dev">
+        <input id="acct" style="min-width:360px" placeholder="Account (0x…)" value="">
+        <select id="period">
+          <option>day</option><option>week</option><option>month</option><option>allTime</option>
+          <option>perpDay</option><option>perpWeek</option><option>perpMonth</option><option>perpAllTime</option>
+        </select>
+        <label><input type="checkbox" id="pos" checked> positions</label>
+        <label><input type="checkbox" id="cls" checked> closed</label>
+        <button id="go">Fetch</button>
+      </div>
+      <div class="content muted">Tip: start with <b>day</b> to check it’s fast, then try week/month.</div>
+    </div>
+
+    <div id="error" class="err"></div>
+
+    <div id="summary" class="card" style="display:none">
+      <h3>Summary</h3>
+      <div class="content" id="summaryBody"></div>
+    </div>
+
+    <div id="positions" class="card" style="display:none">
+      <h3>Open Positions</h3>
+      <div class="content">
+        <table id="posTable"><thead><tr>
+          <th>Coin</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th>
+          <th>Notional</th><th>Unrealized</th><th>ROE</th><th>Basis</th><th>Lev</th><th>LiqPx</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div id="closed" class="card" style="display:none">
+      <h3>Closed Trades</h3>
+      <div class="content">
+        <table id="clsTable"><thead><tr>
+          <th>End</th><th>Coin</th><th>Dir</th><th>Duration</th><th>SizeClosed</th><th>AvgEntry</th><th>ExitPx</th><th>PnL</th><th>Fees</th><th>NetPnL</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    const num = (v,d=2)=> (v==null||!isFinite(+v))? "": Number(v).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d});
+    const pct = (v)=> (v==null||!isFinite(+v))? "": ((Math.abs(+v)<=1?+v*100:+v).toFixed(2)+'%');
+    const ts  = (ms)=> !ms? "": new Date(ms).toLocaleString();
+
+    async function fetchJson(url, timeoutMs=15000){
+      const ctrl = new AbortController();
+      const to = setTimeout(()=>ctrl.abort(), timeoutMs);
+      try{
+        const res = await fetch(url, { signal: ctrl.signal, mode:'cors', credentials:'omit' });
+        if(!res.ok){ const t = await res.text().catch(()=> ''); throw new Error(`HTTP ${res.status}${t ? ' — '+t.slice(0,120):''}`); }
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) return await res.json();
+        const txt = await res.text(); try { return JSON.parse(txt); } catch { throw new Error('Unexpected non-JSON'); }
+      } finally { clearTimeout(to); }
+    }
+
+    el('go').onclick = async () => {
+      el('error').textContent = '';
+      el('summary').style.display = 'none';
+      el('positions').style.display = 'none';
+      el('closed').style.display = 'none';
+
+      const base = el('base').value.replace(/\/$/,'');
+      const acct = el('acct').value.trim();
+      const period = el('period').value;
+      const wantPos = el('pos').checked;
+      const wantCls = el('cls').checked;
+      if(!acct){ el('error').textContent = 'Please enter an account address.'; return; }
+
+      const params = new URLSearchParams({ account: acct, period, _ts: String(Math.floor(Date.now()/1000)) });
+      if (wantPos) params.set('positions','1');
+      if (wantCls) params.set('closed','1');
+      const url = `${base}/pnlClean?${params.toString()}`;
+
+      let data;
+      try { data = await fetchJson(url, 15000); }
+      catch (e){ el('error').textContent = e.message || String(e); return; }
+      if (!data.ok){ el('error').textContent = data.error || 'ok=false'; return; }
+
+      // Summary
+      el('summary').style.display = '';
+      el('summaryBody').innerHTML = `
+        <div><b>Period:</b> ${data.period} <span class="muted">(${data.method})</span></div>
+        <div><b>Window:</b> ${ts(data.window?.startMs)} → ${ts(data.window?.endMs)}</div>
+        <div><b>Trading PnL:</b> $${num(data.perp_pnl)} <span class="muted">(ROI ${pct(data.roi?.trading_pct)})</span></div>
+        <div><b>Portfolio PnL:</b> $${num(data.balance_change)} <span class="muted">(ROI ${pct(data.roi?.portfolio_pct)})</span></div>
+        <div><b>Balances:</b> Perp $${num(data.balances?.perp_now)} · Portfolio $${num(data.balances?.portfolio_now)}</div>
+        <div class="muted">Cashflows: deposits $${num(data.adjustments?.deposits)} · withdrawals $${num(data.adjustments?.withdrawals)} · net $${num(data.adjustments?.net_cashflow)}</div>
+      `;
+
+      // Positions
+      if (Array.isArray(data.positions) && data.positions.length){
+        el('positions').style.display = '';
+        const tbody = el('posTable').querySelector('tbody'); tbody.innerHTML = '';
+        data.positions.forEach(p=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${p.symbolPretty || p.coin}</td>
+            <td>${p.side||''}</td>
+            <td>${num(p.size,4)} ${p.coin||''}</td>
+            <td>${num(p.entryPx,6)}</td>
+            <td>${num(p.markPx,6)}</td>
+            <td>$${num(p.notional)}</td>
+            <td>$${num(p.unrealizedPnl)}</td>
+            <td>${pct(p.roePct)}</td>
+            <td>${pct(p.basisPct)}</td>
+            <td>${p.leverage??''}</td>
+            <td>${num(p.liqPx,5)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Closed
+      if (Array.isArray(data.closed) && data.closed.length){
+        el('closed').style.display = '';
+        const tbody = el('clsTable').querySelector('tbody'); tbody.innerHTML = '';
+        data.closed.forEach(c=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${ts(c.endTs)}</td>
+            <td>${c.symbolPretty || c.coin}</td>
+            <td>${c.direction||''}</td>
+            <td>${Math.round((c.durationMs||0)/1000)}s</td>
+            <td>${num(c.sizeClosed,4)}</td>
+            <td>${num(c.avgEntryPx,6)}</td>
+            <td>${num(c.exitPx,6)}</td>
+            <td>$${num(c.pnl)}</td>
+            <td>$${num(c.fees)}</td>
+            <td>$${num(c.netPnl)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    };
+  </script>
+</body>
+</html>
