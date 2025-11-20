@@ -748,7 +748,7 @@
         filtered = equitySeriesAll.filter(p => p.ts >= cutoff);
 
         // If there’s too little data in this window, fall back to last N points
-        if (filtered.length < 2) {
+        if (filtered.length < 7) {
           const N = Math.min(10, equitySeriesAll.length);
           filtered = equitySeriesAll.slice(-N);
         }
