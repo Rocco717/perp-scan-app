@@ -567,6 +567,19 @@
       return parts.join(" ");
     }
 
+    function formatDateTime(ts) {
+      if (!ts && ts !== 0) return "";
+      const d = new Date(ts);
+      return d.toLocaleString("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    }
+
     function buildTable(container, rows, opts = {}) {
       container.innerHTML = "";
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -647,6 +660,94 @@
         });
         tbody.appendChild(tr);
       });
+      table.appendChild(tbody);
+      container.appendChild(table);
+    }
+
+    function renderFundingTable(container, events, summary) {
+      container.innerHTML = "";
+
+      const perpEvents = (events || [])
+        .filter(ev => ev.kind === "perpTransfer")
+        .sort((a, b) => b.time - a.time); // newest first
+
+      // Summary block
+      const summaryDiv = document.createElement("div");
+      summaryDiv.style.padding = "8px 10px";
+      summaryDiv.style.fontSize = "0.78rem";
+      summaryDiv.style.color = "var(--muted)";
+
+      if (summary && (summary.perpInUSDC || summary.perpOutUSDC || summary.netPerpFlowUSDC)) {
+        const inUSDC = Number(summary.perpInUSDC || 0);
+        const outUSDC = Number(summary.perpOutUSDC || 0);
+        const netUSDC = Number(summary.netPerpFlowUSDC || 0);
+        const netSign = netUSDC > 0 ? "+" : netUSDC < 0 ? "−" : "";
+        const netAbs = Math.abs(netUSDC).toFixed(2);
+
+        summaryDiv.textContent =
+          `Perp account flow (window): ` +
+          `Deposits ${inUSDC.toFixed(2)} USDC · ` +
+          `Withdrawals ${outUSDC.toFixed(2)} USDC · ` +
+          `Net ${netSign}${netAbs} USDC`;
+      } else {
+        summaryDiv.textContent = "Perp deposits and withdrawals for this window.";
+      }
+
+      container.appendChild(summaryDiv);
+
+      if (!perpEvents.length) {
+        const empty = document.createElement("div");
+        empty.style.padding = "10px";
+        empty.style.fontSize = "0.78rem";
+        empty.style.color = "var(--muted)";
+        empty.textContent = "No perp deposits or withdrawals in this period.";
+        container.appendChild(empty);
+        return;
+      }
+
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const trHead = document.createElement("tr");
+      ["Date / Time", "Direction", "Amount (USDC)", "Note", "Tx Hash"].forEach(label => {
+        const th = document.createElement("th");
+        th.textContent = label;
+        trHead.appendChild(th);
+      });
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      perpEvents.forEach(ev => {
+        const tr = document.createElement("tr");
+
+        const dateTd = document.createElement("td");
+        dateTd.textContent = formatDateTime(ev.time);
+
+        const dirTd = document.createElement("td");
+        dirTd.textContent =
+          ev.direction === "IN" ? "Deposit (spot → perp)" : "Withdrawal (perp → spot)";
+
+        const amtTd = document.createElement("td");
+        const val = Number(ev.usdcValue ?? ev.amount ?? 0);
+        amtTd.textContent = formatNumber(val, 2);
+
+        const noteTd = document.createElement("td");
+        noteTd.textContent = ev.note || "";
+
+        const hashTd = document.createElement("td");
+        const h = ev.hash || "";
+        hashTd.textContent =
+          h && h.length > 14 ? `${h.slice(0, 10)}…${h.slice(-6)}` : h;
+
+        tr.appendChild(dateTd);
+        tr.appendChild(dirTd);
+        tr.appendChild(amtTd);
+        tr.appendChild(noteTd);
+        tr.appendChild(hashTd);
+        tbody.appendChild(tr);
+      });
+
       table.appendChild(tbody);
       container.appendChild(table);
     }
@@ -860,9 +961,13 @@
       switchTab("positions");
 
       let baseUrl = baseUrlRaw.replace(/\/+$/, "");
-      const url = baseUrl + "/pnlClean?account=" + encodeURIComponent(account) +
-                  "&period=" + encodeURIComponent(period) +
-                  "&positions=1&closed=1";
+      const url =
+        baseUrl +
+        "/pnlClean?account=" +
+        encodeURIComponent(account) +
+        "&period=" +
+        encodeURIComponent(period) +
+        "&positions=1&closed=1";
 
       statusEl.textContent = "Fetching from " + url + " …";
       statusEl.className = "status";
@@ -871,7 +976,7 @@
       try {
         const res = await fetch(url, {
           method: "GET",
-          headers: { "Accept": "application/json" }
+          headers: { Accept: "application/json" },
         });
 
         if (!res.ok) {
@@ -892,24 +997,39 @@
         statusEl.textContent = "OK · Response received.";
         statusEl.className = "status status-ok";
 
+        // raw JSON block
         const rawBlock = document.getElementById("rawJsonBlock");
         const rawPre = document.getElementById("rawJson");
         rawPre.textContent = JSON.stringify(data, null, 2);
         rawBlock.style.display = "block";
 
+        // account label top-right
         const accountLabel = document.getElementById("accountLabel");
         const accDisplay = (data.account || account || "").toString();
         accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
 
+        // summary badges
         const summaryBadges = document.getElementById("summaryBadges");
         const summaryMeta = document.getElementById("summaryMeta");
         summaryBadges.innerHTML = "";
         summaryMeta.innerHTML = "";
 
-        const summary = data.summary || data.portfolioSummary || data.portfolio || data.meta || data.roi || null;
+        const summary =
+          data.summary ||
+          data.portfolioSummary ||
+          data.portfolio ||
+          data.meta ||
+          data.roi ||
+          null;
+
         if (summary && typeof summary === "object") {
           const pnl = summary.totalPnl ?? summary.pnl ?? summary.realizedPnl ?? null;
-          const roi = summary.totalRoi ?? summary.roi ?? summary.returnPct ?? summary.portfolio_pct ?? null;
+          const roi =
+            summary.totalRoi ??
+            summary.roi ??
+            summary.returnPct ??
+            summary.portfolio_pct ??
+            null;
           const unreal = summary.unrealizedPnl ?? null;
           const deposits = summary.deposits ?? summary.deposited ?? null;
           const withdrawals = summary.withdrawals ?? summary.withdrawn ?? null;
@@ -918,63 +1038,97 @@
           const badges = [];
           if (pnl !== null) {
             const color = Number(pnl) >= 0 ? "green" : "red";
-            badges.push(createBadge("Total PnL", formatNumber(pnl, 2), { color }));
+            badges.push(
+              createBadge("Total PnL", formatNumber(pnl, 2), { color }),
+            );
           }
           if (roi !== null) {
             const color = Number(roi) >= 0 ? "green" : "red";
             const suffix = Math.abs(Number(roi)) > 1.5 ? "%" : "";
-            badges.push(createBadge("ROI", formatNumber(roi, 2) + suffix, { color }));
+            badges.push(
+              createBadge("ROI", formatNumber(roi, 2) + suffix, { color }),
+            );
           }
           if (unreal !== null) {
             const color = Number(unreal) >= 0 ? "green" : "red";
-            badges.push(createBadge("Unrealized", formatNumber(unreal, 2), { color }));
+            badges.push(
+              createBadge("Unrealized", formatNumber(unreal, 2), { color }),
+            );
           }
-          badges.filter(Boolean).forEach(b => summaryBadges.appendChild(b));
+          badges.filter(Boolean).forEach((b) => summaryBadges.appendChild(b));
 
           const metaBadges = [];
-          if (deposits !== null) metaBadges.push(createBadge("Deposits", formatNumber(deposits, 2)));
-          if (withdrawals !== null) metaBadges.push(createBadge("Withdrawals", formatNumber(withdrawals, 2)));
-          if (fees !== null) metaBadges.push(createBadge("Fees", formatNumber(fees, 2)));
-          metaBadges.filter(Boolean).forEach(b => summaryMeta.appendChild(b));
+          if (deposits !== null)
+            metaBadges.push(
+              createBadge("Deposits", formatNumber(deposits, 2)),
+            );
+          if (withdrawals !== null)
+            metaBadges.push(
+              createBadge("Withdrawals", formatNumber(withdrawals, 2)),
+            );
+          if (fees !== null)
+            metaBadges.push(createBadge("Fees", formatNumber(fees, 2)));
+          metaBadges.filter(Boolean).forEach((b) => summaryMeta.appendChild(b));
         } else {
           summaryBadges.innerHTML =
             '<span style="font-size:0.78rem; color:var(--muted);">No explicit summary object found in response.</span>';
         }
 
+        // positions / closed from backend
         const positions = data.positions || data.openPositions || data.open || [];
         const closed = data.closed || data.closedTrades || data.trades || [];
-        const cash = data.cashflows || data.ledger || data.cashflow || [];
 
-        const positionsContainer = document.getElementById("positionsTableContainer");
-        const closedContainer = document.getElementById("closedTableContainer");
+        // NEW: funding events from backend (perp deposits/withdrawals)
+        const fundingEvents = data.fundingEvents || [];
+        const fundingSummary = data.fundingSummary || {};
+
+        const positionsContainer = document.getElementById(
+          "positionsTableContainer",
+        );
+        const closedContainer =
+          document.getElementById("closedTableContainer");
         const cashContainer = document.getElementById("cashTableContainer");
 
         buildTable(positionsContainer, positions, { type: "positions" });
         buildTable(closedContainer, closed, { type: "closed" });
-        buildTable(cashContainer, cash, {});
 
+        // custom perp deposits/withdrawals table
+        renderFundingTable(cashContainer, fundingEvents, fundingSummary);
+
+        // tab counts
         const posCount = document.getElementById("positionsCount");
         const closedCount = document.getElementById("closedCount");
         const cashCount = document.getElementById("cashCount");
-        posCount.textContent = "(" + (Array.isArray(positions) ? positions.length : 0) + ")";
-        closedCount.textContent = "(" + (Array.isArray(closed) ? closed.length : 0) + ")";
-        cashCount.textContent = "(" + (Array.isArray(cash) ? cash.length : 0) + ")";
 
-        equitySeriesAll = Array.isArray(data.equitySeries) ? data.equitySeries : [];
+        posCount.textContent =
+          "(" + (Array.isArray(positions) ? positions.length : 0) + ")";
+        closedCount.textContent =
+          "(" + (Array.isArray(closed) ? closed.length : 0) + ")";
+
+        const perpEventsCount = fundingEvents.filter(
+          (ev) => ev.kind === "perpTransfer",
+        ).length;
+        cashCount.textContent = "(" + perpEventsCount + ")";
+
+        // equity chart
+        equitySeriesAll = Array.isArray(data.equitySeries)
+          ? data.equitySeries
+          : [];
         if (equitySeriesAll.length) {
           equitySeriesAll = equitySeriesAll
-            .map(p => ({
+            .map((p) => ({
               ts: Number(p.ts ?? p[0]),
               equity: Number(p.equity ?? p[1]),
             }))
-            .filter(p => Number.isFinite(p.ts) && Number.isFinite(p.equity))
+            .filter(
+              (p) => Number.isFinite(p.ts) && Number.isFinite(p.equity),
+            )
             .sort((a, b) => a.ts - b.ts);
           renderEquityChart("all");
         } else {
           const chartCard = document.getElementById("chart-card");
           chartCard.style.display = "none";
         }
-
       } catch (err) {
         console.error(err);
         statusEl.textContent = "Error: " + (err?.message || err);
