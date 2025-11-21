@@ -746,9 +746,14 @@
       let filtered = equitySeriesAll;
       if (cutoff !== null) {
         filtered = equitySeriesAll.filter(p => p.ts >= cutoff);
-
-        // If there’s too little data in this window, fall back to last N points
-        if (filtered.length < 7) {
+      
+        // Decide how many points we consider "too little" per range
+        let minPoints = 2;              // default
+        if (range === "1d") minPoints = 4;   // avoid single-dot 1D
+        else if (range === "30d") minPoints = 4; // optional
+      
+        // For 7D we **always** use the real 7-day slice, even if it's only 3–4 points.
+        if (range !== "7d" && filtered.length < minPoints) {
           const N = Math.min(10, equitySeriesAll.length);
           filtered = equitySeriesAll.slice(-N);
         }
