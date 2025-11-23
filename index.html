@@ -1058,17 +1058,33 @@
           badges.filter(Boolean).forEach((b) => summaryBadges.appendChild(b));
 
           const metaBadges = [];
-          if (deposits !== null)
-            metaBadges.push(
-              createBadge("Deposits", formatNumber(deposits, 2)),
-            );
-          if (withdrawals !== null)
-            metaBadges.push(
-              createBadge("Withdrawals", formatNumber(withdrawals, 2)),
-            );
-          if (fees !== null)
+          if (deposits !== null) {
+            metaBadges.push(createBadge("Deposits", formatNumber(deposits, 2)));
+          }
+          if (withdrawals !== null) {
+            metaBadges.push(createBadge("Withdrawals", formatNumber(withdrawals, 2)));
+          }
+          if (fees !== null) {
             metaBadges.push(createBadge("Fees", formatNumber(fees, 2)));
-          metaBadges.filter(Boolean).forEach((b) => summaryMeta.appendChild(b));
+          }
+
+          // ✅ NEW: current equity badges from backend balances
+          const balances = data.balances || {};
+          const perpNow = balances.perp_now;
+          const portNow = balances.portfolio_now;
+
+          if (perpNow != null) {
+            metaBadges.push(
+              createBadge("Perp equity now", "$" + formatNumber(perpNow, 2))
+            );
+          }
+          if (portNow != null) {
+            metaBadges.push(
+              createBadge("Total equity now", "$" + formatNumber(portNow, 2))
+            );
+          }
+
+          metaBadges.filter(Boolean).forEach(b => summaryMeta.appendChild(b));
         } else {
           summaryBadges.innerHTML =
             '<span style="font-size:0.78rem; color:var(--muted);">No explicit summary object found in response.</span>';
