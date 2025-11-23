@@ -1022,72 +1022,97 @@
           data.roi ||
           null;
 
-        if (summary && typeof summary === "object") {
-          const pnl = summary.totalPnl ?? summary.pnl ?? summary.realizedPnl ?? null;
-          const roi =
-            summary.totalRoi ??
-            summary.roi ??
-            summary.returnPct ??
-            summary.portfolio_pct ??
-            null;
-          const unreal = summary.unrealizedPnl ?? null;
-          const deposits = summary.deposits ?? summary.deposited ?? null;
-          const withdrawals = summary.withdrawals ?? summary.withdrawn ?? null;
-          const fees = summary.fees ?? null;
+                // ---- SUMMARY: build from pnlClean fields (perp_pnl, balance_change, roi) ----
+        summaryBadges.innerHTML = "";
+        summaryMeta.innerHTML = "";
 
-          const badges = [];
-          if (pnl !== null) {
-            const color = Number(pnl) >= 0 ? "green" : "red";
-            badges.push(
-              createBadge("Total PnL", formatNumber(pnl, 2), { color }),
-            );
-          }
-          if (roi !== null) {
-            const color = Number(roi) >= 0 ? "green" : "red";
-            const suffix = Math.abs(Number(roi)) > 1.5 ? "%" : "";
-            badges.push(
-              createBadge("ROI", formatNumber(roi, 2) + suffix, { color }),
-            );
-          }
-          if (unreal !== null) {
-            const color = Number(unreal) >= 0 ? "green" : "red";
-            badges.push(
-              createBadge("Unrealized", formatNumber(unreal, 2), { color }),
-            );
-          }
-          badges.filter(Boolean).forEach((b) => summaryBadges.appendChild(b));
+        const tradingPnl   = typeof data.perp_pnl === "number" ? data.perp_pnl : null;
+        const portfolioPnl = typeof data.balance_change === "number" ? data.balance_change : null;
 
-          const metaBadges = [];
-          if (deposits !== null) {
-            metaBadges.push(createBadge("Deposits", formatNumber(deposits, 2)));
-          }
-          if (withdrawals !== null) {
-            metaBadges.push(createBadge("Withdrawals", formatNumber(withdrawals, 2)));
-          }
-          if (fees !== null) {
-            metaBadges.push(createBadge("Fees", formatNumber(fees, 2)));
-          }
+        const roiObj = data.roi || {};
+        const tradingPct   = typeof roiObj.trading_pct === "number" ? roiObj.trading_pct : null;
+        const portfolioPct = typeof roiObj.portfolio_pct === "number" ? roiObj.portfolio_pct : null;
 
-          // ✅ NEW: current equity badges from backend balances
-          const balances = data.balances || {};
-          const perpNow = balances.perp_now;
-          const portNow = balances.portfolio_now;
+        const pnlBadges = [];
 
-          if (perpNow != null) {
-            metaBadges.push(
-              createBadge("Perp equity now", "$" + formatNumber(perpNow, 2))
-            );
-          }
-          if (portNow != null) {
-            metaBadges.push(
-              createBadge("Total equity now", "$" + formatNumber(portNow, 2))
-            );
-          }
+        if (portfolioPnl !== null) {
+          const color = portfolioPnl >= 0 ? "green" : "red";
+          pnlBadges.push(
+            createBadge("Portfolio PnL", "$" + formatNumber(portfolioPnl, 2), { color })
+          );
+        }
+        if (tradingPnl !== null) {
+          const color = tradingPnl >= 0 ? "green" : "red";
+          pnlBadges.push(
+            createBadge("Perp PnL", "$" + formatNumber(tradingPnl, 2), { color })
+          );
+        }
+        if (portfolioPct !== null) {
+          const color = portfolioPct >= 0 ? "green" : "red";
+          pnlBadges.push(
+            createBadge("Portfolio ROI", formatNumber(portfolioPct, 2) + "%", { color })
+          );
+        }
+        if (tradingPct !== null) {
+          const color = tradingPct >= 0 ? "green" : "red";
+          pnlBadges.push(
+            createBadge("Perp ROI", formatNumber(tradingPct, 2) + "%", { color })
+          );
+        }
 
-          metaBadges.filter(Boolean).forEach(b => summaryMeta.appendChild(b));
-        } else {
+        if (!pnlBadges.length) {
           summaryBadges.innerHTML =
-            '<span style="font-size:0.78rem; color:var(--muted);">No explicit summary object found in response.</span>';
+            '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
+        } else {
+          pnlBadges.forEach(b => summaryBadges.appendChild(b));
+        }
+
+        // ---- META: deposits / withdrawals / fees (if available) + current equity ----
+        const anySummary =
+          data.summary || data.portfolioSummary || data.portfolio || data.meta || null;
+
+        const deposits =
+          anySummary?.deposits ??
+          anySummary?.deposited ??
+          data.adjustments?.deposits ??
+          null;
+
+        const withdrawals =
+          anySummary?.withdrawals ??
+          anySummary?.withdrawn ??
+          data.adjustments?.withdrawals ??
+          null;
+
+        const fees = anySummary?.fees ?? null;
+
+        const metaBadges = [];
+        if (deposits !== null) {
+          metaBadges.push(createBadge("Deposits", "$" + formatNumber(deposits, 2)));
+        }
+        if (withdrawals !== null) {
+          metaBadges.push(createBadge("Withdrawals", "$" + formatNumber(withdrawals, 2)));
+        }
+        if (fees !== null) {
+          metaBadges.push(createBadge("Fees", "$" + formatNumber(fees, 2)));
+        }
+
+        const balances = data.balances || {};
+        if (balances.perp_now != null) {
+          metaBadges.push(
+            createBadge("Perp equity now", "$" + formatNumber(balances.perp_now, 2))
+          );
+        }
+        if (balances.portfolio_now != null) {
+          metaBadges.push(
+            createBadge("Total equity now", "$" + formatNumber(balances.portfolio_now, 2))
+          );
+        }
+
+        if (!metaBadges.length) {
+          summaryMeta.innerHTML =
+            '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
+        } else {
+          metaBadges.forEach(b => summaryMeta.appendChild(b));
         }
 
         // positions / closed from backend
