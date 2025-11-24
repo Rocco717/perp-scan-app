@@ -838,36 +838,42 @@
       } else {
         container.style.display = "";
       }
-
-      // Compute window on the frontend based on the last equity timestamp
+    
       const dayMs = 24 * 60 * 60 * 1000;
-      const lastTs = equitySeriesAll[equitySeriesAll.length - 1].ts;
-
+      const firstTs = equitySeriesAll[0].ts;
+      const lastTs  = equitySeriesAll[equitySeriesAll.length - 1].ts;
+      const totalSpan = lastTs - firstTs;
+    
+      // Normal range windowing
       let cutoff = null;
-      if (range === "1d") cutoff = lastTs - dayMs;
+      if (range === "1d")      cutoff = lastTs - dayMs;
       else if (range === "7d") cutoff = lastTs - 7 * dayMs;
       else if (range === "30d") cutoff = lastTs - 30 * dayMs;
       else if (range === "90d") cutoff = lastTs - 90 * dayMs;
-
+    
       let filtered = equitySeriesAll;
       if (cutoff !== null) {
         filtered = equitySeriesAll.filter(p => p.ts >= cutoff);
-      
-        // Decide how many points we consider "too little" per range
-        let minPoints = 2;              // default
-        if (range === "1d") minPoints = 4;   // avoid single-dot 1D
-        else if (range === "30d") minPoints = 4; // optional
-      
-        // For 7D we **always** use the real 7-day slice, even if it's only 3–4 points.
+    
+        // Fallback logic if too few points (except for 7D)
+        let minPoints = 2;
+        if (range === "1d") minPoints = 4;
+        else if (range === "30d") minPoints = 4;
+    
         if (range !== "7d" && filtered.length < minPoints) {
           const N = Math.min(10, equitySeriesAll.length);
           filtered = equitySeriesAll.slice(-N);
         }
       }
-
-      const labels = filtered.map(p => formatEquityLabel(p.ts, range));
+    
+      // 🔹 Decide how to label the X-axis:
+      // If the *total* span of the data is ≤ 1 day, always use time-of-day labels.
+      const labelRange =
+        totalSpan <= dayMs ? "1d" : range;
+    
+      const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
       const values = filtered.map(p => p.equity);
-
+    
       const ctx = document.getElementById("equityChart").getContext("2d");
       if (equityChart) {
         equityChart.data.labels = labels;
@@ -924,7 +930,7 @@
           },
         });
       }
-
+    
       document.querySelectorAll(".range-btn").forEach(btn => {
         if (btn.dataset.range === range) {
           btn.classList.add("range-btn-active");
@@ -933,6 +939,7 @@
         }
       });
     }
+
 
     async function runFetch(skipRedirect) {
       const baseUrlInput = document.getElementById("baseUrl");
