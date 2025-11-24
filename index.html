@@ -413,14 +413,19 @@
             <div class="field">
               <label for="period">Period</label>
               <div style="display:flex; gap:8px;">
-                <select id="period" name="period" style="flex:1;">
-                  <option value="all" selected>All history</option>
-                  <option value="365d">Last 365 days</option>
-                  <option value="90d">Last 90 days</option>
-                  <option value="30d">Last 30 days</option>
-                  <option value="7d">Last 7 days</option>
-                  <option value="1d">Last 24h</option>
-                </select>
+              <select id="period" name="period" style="flex:1;">
+                <!-- Uses HL allTime (full account history) -->
+                <option value="allTime" selected>All history</option>
+              
+                <!-- Optional rolling window, still supported by backend "Xd" parsing -->
+                <option value="365d">Last 365 days (rolling)</option>
+              
+                <!-- These three now use HL’s own day/week/month curves -->
+                <option value="month">Last 30 days (HL month)</option>
+                <option value="week">Last 7 days (HL week)</option>
+                <option value="day">Last 24h (HL day)</option>
+              </select>
+
                 <button id="fetchBtn" type="submit">Fetch</button>
               </div>
             </div>
