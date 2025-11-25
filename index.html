@@ -635,7 +635,7 @@
       : {};
 
     const hidden = isPositions
-      ? new Set(["coinIdx", "notional", "basisPct", "unrealizedPct", "roiPct"])
+      ? new Set(["coinIdx", "notional", "basisPct", "unrealizedPct", "roiPct", "roePct"])
       : isClosed
       ? new Set(["endTs"])
       : new Set([]);
@@ -671,35 +671,43 @@
         const td = document.createElement("td");
         let v = r[k];
     
-        if (typeof v === "number") {
-        
-          // 🎯 Format leverage as "5x"
-          if (k === "leverage") {
-            td.textContent = v ? `${v}x` : "";
-          
-          // 🎯 Human format for duration
-          } else if (k === "durationMs" && isClosed) {
-            td.textContent = humanizeDuration(v);
-        
-          // 🎯 Special case: unrealizedPnl → "$X.XX"
-          } else if (k === "unrealizedPnl") {
-            const sign = v >= 0 ? "" : "-";
-            td.textContent = sign + "$" + formatNumber(Math.abs(v), 2);
-        
-            // Color coding (optional but recommended)
-            if (v > 0) td.style.color = "var(--success)";
-            if (v < 0) td.style.color = "var(--danger)";
-        
-          // 🎯 All other numbers (entryPx, markPx, size, etc.)
-          } else {
-            const decimals =
-              k === "entryPx" || k === "markPx" ? 4 : 2;  // change default to 2
-            td.textContent = formatNumber(v, decimals);
+      if (typeof v === "number") {
+      
+        // 🎯 Format leverage as "5x"
+        if (k === "leverage") {
+          td.textContent = v ? `${v}x` : "";
+      
+        // 🎯 Human format for duration
+        } else if (k === "durationMs" && isClosed) {
+          td.textContent = humanizeDuration(v);
+      
+        // 🎯 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
+        } else if (k === "unrealizedPnl") {
+          const sign = v >= 0 ? "" : "-";
+          const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
+      
+          const roe = typeof r.roePct === "number" ? r.roePct : null;
+          let roeText = "";
+          if (roe !== null) {
+            const pctSign = roe >= 0 ? "" : "-";
+            roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
           }
-        
+      
+          td.textContent = baseText + roeText;
+      
+          if (v > 0) td.style.color = "var(--success)";
+          if (v < 0) td.style.color = "var(--danger)";
+      
+        // 🎯 All other numbers (entryPx, markPx, size, etc.)
         } else {
-          td.textContent = v == null ? "" : String(v);
+          const decimals =
+            k === "entryPx" || k === "markPx" ? 4 : 2;
+          td.textContent = formatNumber(v, decimals);
         }
+      
+      } else {
+        td.textContent = v == null ? "" : String(v);
+      }
     
         tr.appendChild(td);
       });
