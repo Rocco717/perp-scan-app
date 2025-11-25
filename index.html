@@ -513,455 +513,461 @@
     </main>
   </div>
 
-  <script>
-    let activeTab = "positions";
-    let equitySeriesAll = [];
-    let equityChart = null;
-    let currentRange = "all";  // default display + backend period
+<script>
+  let activeTab = "positions";
+  let equitySeriesAll = [];
+  let equityChart = null;
+  let currentRange = "all"; // UI range: all, 90d, 30d, 7d, 1d
 
-    function formatNumber(x, decimals = 2) {
-      if (x === null || x === undefined || isNaN(Number(x))) return "";
-      const n = Number(x);
-      const opts = { minimumFractionDigits: decimals, maximumFractionDigits: decimals };
-      return n.toLocaleString(undefined, opts);
+  function formatNumber(x, decimals = 2) {
+    if (x === null || x === undefined || isNaN(Number(x))) return "";
+    const n = Number(x);
+    const opts = { minimumFractionDigits: decimals, maximumFractionDigits: decimals };
+    return n.toLocaleString(undefined, opts);
+  }
+
+  function createBadge(label, value, options = {}) {
+    if (value === null || value === undefined || value === "") return null;
+    const badge = document.createElement("div");
+    badge.className = "badge";
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = label;
+    const valueSpan = document.createElement("span");
+    valueSpan.className = "badge-strong";
+    if (options.color === "green") valueSpan.classList.add("pill-green");
+    if (options.color === "red") valueSpan.classList.add("pill-red");
+    valueSpan.textContent = value;
+    badge.appendChild(labelSpan);
+    badge.appendChild(valueSpan);
+    return badge;
+  }
+
+  function humanizeDuration(ms) {
+    if (ms == null || isNaN(ms)) return "";
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(s / 86400);
+    const hours = Math.floor((s % 86400) / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+
+    const parts = [];
+    if (days) parts.push(days + "d");
+    if (hours) parts.push(hours + "h");
+    if (mins) parts.push(mins + "m");
+    if (!days && !hours && !mins) parts.push(secs + "s");
+    return parts.join(" ");
+  }
+
+  function formatDateTime(ts) {
+    if (!ts && ts !== 0) return "";
+    const d = new Date(ts);
+    return d.toLocaleString("en-GB", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  }
+
+  function buildTable(container, rows, opts = {}) {
+    container.innerHTML = "";
+    if (!Array.isArray(rows) || rows.length === 0) {
+      container.innerHTML =
+        '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">No data returned.</div>';
+      return;
     }
 
-    function createBadge(label, value, options = {}) {
-      if (value === null || value === undefined || value === "") return null;
-      const badge = document.createElement("div");
-      badge.className = "badge";
-      const labelSpan = document.createElement("span");
-      labelSpan.textContent = label;
-      const valueSpan = document.createElement("span");
-      valueSpan.className = "badge-strong";
-      if (options.color === "green") valueSpan.classList.add("pill-green");
-      if (options.color === "red") valueSpan.classList.add("pill-red");
-      valueSpan.textContent = value;
-      badge.appendChild(labelSpan);
-      badge.appendChild(valueSpan);
-      return badge;
-    }
+    const isPositions = opts.type === "positions";
+    const isClosed = opts.type === "closed";
 
-    function humanizeDuration(ms) {
-      if (ms == null || isNaN(ms)) return "";
-      const s = Math.max(0, Math.floor(ms / 1000));
-      const days = Math.floor(s / 86400);
-      const hours = Math.floor((s % 86400) / 3600);
-      const mins = Math.floor((s % 3600) / 60);
-      const secs = s % 60;
-
-      const parts = [];
-      if (days) parts.push(days + "d");
-      if (hours) parts.push(hours + "h");
-      if (mins) parts.push(mins + "m");
-      if (!days && !hours && !mins) parts.push(secs + "s");
-      return parts.join(" ");
-    }
-
-    function formatDateTime(ts) {
-      if (!ts && ts !== 0) return "";
-      const d = new Date(ts);
-      return d.toLocaleString("en-GB", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-    }
-
-    function buildTable(container, rows, opts = {}) {
-      container.innerHTML = "";
-      if (!Array.isArray(rows) || rows.length === 0) {
-        container.innerHTML =
-          '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">No data returned.</div>';
-        return;
-      }
-
-      const isPositions = opts.type === "positions";
-      const isClosed = opts.type === "closed";
-
-      const displayNames = isPositions
-        ? {
-            coinIdx: "Ticker",
-            side: "Direction",
-            entryPx: "Entry Price",
-            markPx: "Current Price",
-            value: "Position Value",
-          }
-        : isClosed
-        ? {
-            netPnl: "Net Pnl",
-            sizeClosed: "Size Closed",
-            avgEntryPx: "Entry Price",
-            exitPx: "Exit Price",
-            durationMs: "Duration",
-          }
-        : {};
-
-      const hidden = isPositions
-        ? new Set(["notional", "basisPct", "unrealizedPct", "roiPct"])
-        : isClosed
-        ? new Set(["endTs"])
-        : new Set([]);
-
-      const keys = Object.keys(rows[0] || {}).filter((k) => {
-        const v = rows[0][k];
-        if (typeof v === "object" || typeof v === "function") return false;
-        if (hidden.has(k)) return false;
-        return true;
-      });
-
-      if (!keys.length) {
-        container.innerHTML =
-          '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">Unsupported row format.</div>';
-        return;
-      }
-
-      const table = document.createElement("table");
-      const thead = document.createElement("thead");
-      const trHead = document.createElement("tr");
-      keys.forEach((key) => {
-        const th = document.createElement("th");
-        th.textContent = displayNames[key] || key;
-        trHead.appendChild(th);
-      });
-      thead.appendChild(trHead);
-      table.appendChild(thead);
-
-      const tbody = document.createElement("tbody");
-      rows.forEach((r) => {
-        const tr = document.createElement("tr");
-        keys.forEach((k) => {
-          const td = document.createElement("td");
-          let v = r[k];
-          if (typeof v === "number") {
-            if (k === "durationMs" && isClosed) {
-              td.textContent = humanizeDuration(v);
-            } else {
-              const decimals =
-                k === "entryPx" || k === "markPx" ? 4 : opts.numericDecimals ?? 4;
-              td.textContent = formatNumber(v, decimals);
-            }
-          } else {
-            td.textContent = v == null ? "" : String(v);
-          }
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      container.appendChild(table);
-    }
-
-    function renderFundingTable(container, events, summary) {
-      container.innerHTML = "";
-
-      const perpEvents = (events || [])
-        .filter(ev => ev.kind === "perpTransfer")
-        .sort((a, b) => b.time - a.time); // newest first
-
-      // Summary block
-      const summaryDiv = document.createElement("div");
-      summaryDiv.style.padding = "8px 10px";
-      summaryDiv.style.fontSize = "0.78rem";
-      summaryDiv.style.color = "var(--muted)";
-
-      if (summary && (summary.perpInUSDC || summary.perpOutUSDC || summary.netPerpFlowUSDC)) {
-        const inUSDC = Number(summary.perpInUSDC || 0);
-        const outUSDC = Number(summary.perpOutUSDC || 0);
-        const netUSDC = Number(summary.netPerpFlowUSDC || 0);
-        const netSign = netUSDC > 0 ? "+" : netUSDC < 0 ? "−" : "";
-        const netAbs = Math.abs(netUSDC).toFixed(2);
-
-        summaryDiv.textContent =
-          `Perp account flow (window): ` +
-          `Deposits ${inUSDC.toFixed(2)} USDC · ` +
-          `Withdrawals ${outUSDC.toFixed(2)} USDC · ` +
-          `Net ${netSign}${netAbs} USDC`;
-      } else {
-        summaryDiv.textContent = "Perp deposits and withdrawals for this window.";
-      }
-
-      container.appendChild(summaryDiv);
-
-      if (!perpEvents.length) {
-        const empty = document.createElement("div");
-        empty.style.padding = "10px";
-        empty.style.fontSize = "0.78rem";
-        empty.style.color = "var(--muted)";
-        empty.textContent = "No perp deposits or withdrawals in this period.";
-        container.appendChild(empty);
-        return;
-      }
-
-      const table = document.createElement("table");
-      const thead = document.createElement("thead");
-      const trHead = document.createElement("tr");
-      ["Date / Time", "Direction", "Amount (USDC)", "Note", "Tx Hash"].forEach(label => {
-        const th = document.createElement("th");
-        th.textContent = label;
-        trHead.appendChild(th);
-      });
-      thead.appendChild(trHead);
-      table.appendChild(thead);
-
-      const tbody = document.createElement("tbody");
-
-      perpEvents.forEach(ev => {
-        const tr = document.createElement("tr");
-
-        const dateTd = document.createElement("td");
-        dateTd.textContent = formatDateTime(ev.time);
-
-        const dirTd = document.createElement("td");
-        dirTd.textContent =
-          ev.direction === "IN" ? "Deposit (spot → perp)" : "Withdrawal (perp → spot)";
-
-        const amtTd = document.createElement("td");
-        const val = Number(ev.usdcValue ?? ev.amount ?? 0);
-        amtTd.textContent = formatNumber(val, 2);
-
-        const noteTd = document.createElement("td");
-        noteTd.textContent = ev.note || "";
-
-        const hashTd = document.createElement("td");
-        const h = ev.hash || "";
-        hashTd.textContent =
-          h && h.length > 14 ? `${h.slice(0, 10)}…${h.slice(-6)}` : h;
-
-        tr.appendChild(dateTd);
-        tr.appendChild(dirTd);
-        tr.appendChild(amtTd);
-        tr.appendChild(noteTd);
-        tr.appendChild(hashTd);
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      container.appendChild(table);
-    }
-
-    function setDetailMode(isDetail) {
-      const summaryCard = document.getElementById("summary-card");
-      const tablesCard = document.getElementById("tables-card");
-      const chartCard = document.getElementById("chart-card");
-      const heroTitle = document.getElementById("hero-title");
-      const heroSub = document.getElementById("hero-sub");
-      const heroHighlightText = document.getElementById("hero-highlight-text");
-      const homeHelper = document.getElementById("home-helper");
-
-      if (isDetail) {
-        summaryCard.style.display = "";
-        tablesCard.style.display = "";
-        chartCard.style.display = "";
-        heroTitle.textContent = "Account detail view";
-        heroSub.textContent = "This URL is now shareable — it will auto-load this address and time window.";
-        heroHighlightText.textContent = "Tip — Bookmark this tab as your personal PnL dashboard.";
-        homeHelper.style.display = "none";
-      } else {
-        summaryCard.style.display = "none";
-        tablesCard.style.display = "none";
-        chartCard.style.display = "none";
-        heroTitle.textContent = "Scan a Hyperliquid account";
-        heroSub.textContent = "Home = clean, no tables. Once you scan an account, this becomes a shareable detail view URL.";
-        heroHighlightText.textContent = "Step 1 — Paste an address and hit Fetch.";
-        homeHelper.style.display = "block";
-      }
-    }
-
-    function switchTab(tab) {
-      activeTab = tab;
-      const posTab = document.getElementById("tab-positions");
-      const closedTab = document.getElementById("tab-closed");
-      const cashTab = document.getElementById("tab-cash");
-      const positionsBlock = document.getElementById("positionsBlock");
-      const closedBlock = document.getElementById("closedBlock");
-      const cashBlock = document.getElementById("cashBlock");
-      const title = document.getElementById("activeTableTitle");
-
-      if (tab === "positions") {
-        posTab.classList.add("tab-pill-active");
-        closedTab.classList.remove("tab-pill-active");
-        cashTab.classList.remove("tab-pill-active");
-        positionsBlock.style.display = "";
-        closedBlock.style.display = "none";
-        cashBlock.style.display = "none";
-        title.textContent = "Open positions";
-      } else if (tab === "closed") {
-        closedTab.classList.add("tab-pill-active");
-        posTab.classList.remove("tab-pill-active");
-        cashTab.classList.remove("tab-pill-active");
-        closedBlock.style.display = "";
-        positionsBlock.style.display = "none";
-        cashBlock.style.display = "none";
-        title.textContent = "Closed trades";
-      } else {
-        cashTab.classList.add("tab-pill-active");
-        posTab.classList.remove("tab-pill-active");
-        closedTab.classList.remove("tab-pill-active");
-        cashBlock.style.display = "";
-        positionsBlock.style.display = "none";
-        closedBlock.style.display = "none";
-        title.textContent = "Deposits / withdrawals";
-      }
-    }
-
-    function formatEquityLabel(ts, range) {
-      const d = new Date(ts);
-      if (range === "1d") {
-        return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-      }
-      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    }
-
-    function renderEquityChart(range) {
-      const container = document.getElementById("chart-card");
-      if (!Array.isArray(equitySeriesAll) || equitySeriesAll.length === 0) {
-        container.style.display = "none";
-        return;
-      } else {
-        container.style.display = "";
-      }
-    
-      const dayMs = 24 * 60 * 60 * 1000;
-      const firstTs = equitySeriesAll[0].ts;
-      const lastTs  = equitySeriesAll[equitySeriesAll.length - 1].ts;
-      const totalSpan = lastTs - firstTs;
-    
-      // Normal range windowing
-      let cutoff = null;
-      if (range === "1d")      cutoff = lastTs - dayMs;
-      else if (range === "7d") cutoff = lastTs - 7 * dayMs;
-      else if (range === "30d") cutoff = lastTs - 30 * dayMs;
-      else if (range === "90d") cutoff = lastTs - 90 * dayMs;
-    
-      let filtered = equitySeriesAll;
-      if (cutoff !== null) {
-        filtered = equitySeriesAll.filter(p => p.ts >= cutoff);
-    
-        // Fallback logic if too few points (except for 7D)
-        let minPoints = 2;
-        if (range === "1d") minPoints = 4;
-        else if (range === "30d") minPoints = 4;
-    
-        if (range !== "7d" && filtered.length < minPoints) {
-          const N = Math.min(10, equitySeriesAll.length);
-          filtered = equitySeriesAll.slice(-N);
+    const displayNames = isPositions
+      ? {
+          coinIdx: "Ticker",
+          side: "Direction",
+          entryPx: "Entry Price",
+          markPx: "Current Price",
+          value: "Position Value",
         }
+      : isClosed
+      ? {
+          netPnl: "Net Pnl",
+          sizeClosed: "Size Closed",
+          avgEntryPx: "Entry Price",
+          exitPx: "Exit Price",
+          durationMs: "Duration",
+        }
+      : {};
+
+    const hidden = isPositions
+      ? new Set(["notional", "basisPct", "unrealizedPct", "roiPct"])
+      : isClosed
+      ? new Set(["endTs"])
+      : new Set([]);
+
+    const keys = Object.keys(rows[0] || {}).filter((k) => {
+      const v = rows[0][k];
+      if (typeof v === "object" || typeof v === "function") return false;
+      if (hidden.has(k)) return false;
+      return true;
+    });
+
+    if (!keys.length) {
+      container.innerHTML =
+        '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">Unsupported row format.</div>';
+      return;
+    }
+
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const trHead = document.createElement("tr");
+    keys.forEach((key) => {
+      const th = document.createElement("th");
+      th.textContent = displayNames[key] || key;
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    rows.forEach((r) => {
+      const tr = document.createElement("tr");
+      keys.forEach((k) => {
+        const td = document.createElement("td");
+        let v = r[k];
+        if (typeof v === "number") {
+          if (k === "durationMs" && isClosed) {
+            td.textContent = humanizeDuration(v);
+          } else {
+            const decimals =
+              k === "entryPx" || k === "markPx" ? 4 : opts.numericDecimals ?? 4;
+            td.textContent = formatNumber(v, decimals);
+          }
+        } else {
+          td.textContent = v == null ? "" : String(v);
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    container.appendChild(table);
+  }
+
+  function renderFundingTable(container, events, summary) {
+    container.innerHTML = "";
+
+    const perpEvents = (events || [])
+      .filter(ev => ev.kind === "perpTransfer")
+      .sort((a, b) => b.time - a.time); // newest first
+
+    // Summary block
+    const summaryDiv = document.createElement("div");
+    summaryDiv.style.padding = "8px 10px";
+    summaryDiv.style.fontSize = "0.78rem";
+    summaryDiv.style.color = "var(--muted)";
+
+    if (summary && (summary.perpInUSDC || summary.perpOutUSDC || summary.netPerpFlowUSDC)) {
+      const inUSDC = Number(summary.perpInUSDC || 0);
+      const outUSDC = Number(summary.perpOutUSDC || 0);
+      const netUSDC = Number(summary.netPerpFlowUSDC || 0);
+      const netSign = netUSDC > 0 ? "+" : netUSDC < 0 ? "−" : "";
+      const netAbs = Math.abs(netUSDC).toFixed(2);
+
+      summaryDiv.textContent =
+        `Perp account flow (window): ` +
+        `Deposits ${inUSDC.toFixed(2)} USDC · ` +
+        `Withdrawals ${outUSDC.toFixed(2)} USDC · ` +
+        `Net ${netSign}${netAbs} USDC`;
+    } else {
+      summaryDiv.textContent = "Perp deposits and withdrawals for this window.";
+    }
+
+    container.appendChild(summaryDiv);
+
+    if (!perpEvents.length) {
+      const empty = document.createElement("div");
+      empty.style.padding = "10px";
+      empty.style.fontSize = "0.78rem";
+      empty.style.color = "var(--muted)";
+      empty.textContent = "No perp deposits or withdrawals in this period.";
+      container.appendChild(empty);
+      return;
+    }
+
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const trHead = document.createElement("tr");
+    ["Date / Time", "Direction", "Amount (USDC)", "Note", "Tx Hash"].forEach(label => {
+      const th = document.createElement("th");
+      th.textContent = label;
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    perpEvents.forEach(ev => {
+      const tr = document.createElement("tr");
+
+      const dateTd = document.createElement("td");
+      dateTd.textContent = formatDateTime(ev.time);
+
+      const dirTd = document.createElement("td");
+      dirTd.textContent =
+        ev.direction === "IN" ? "Deposit (spot → perp)" : "Withdrawal (perp → spot)";
+
+      const amtTd = document.createElement("td");
+      const val = Number(ev.usdcValue ?? ev.amount ?? 0);
+      amtTd.textContent = formatNumber(val, 2);
+
+      const noteTd = document.createElement("td");
+      noteTd.textContent = ev.note || "";
+
+      const hashTd = document.createElement("td");
+      const h = ev.hash || "";
+      hashTd.textContent =
+        h && h.length > 14 ? `${h.slice(0, 10)}…${h.slice(-6)}` : h;
+
+      tr.appendChild(dateTd);
+      tr.appendChild(dirTd);
+      tr.appendChild(amtTd);
+      tr.appendChild(noteTd);
+      tr.appendChild(hashTd);
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    container.appendChild(table);
+  }
+
+  function setDetailMode(isDetail) {
+    const summaryCard = document.getElementById("summary-card");
+    const tablesCard = document.getElementById("tables-card");
+    const chartCard = document.getElementById("chart-card");
+    const heroTitle = document.getElementById("hero-title");
+    const heroSub = document.getElementById("hero-sub");
+    const heroHighlightText = document.getElementById("hero-highlight-text");
+    const homeHelper = document.getElementById("home-helper");
+
+    if (isDetail) {
+      summaryCard.style.display = "";
+      tablesCard.style.display = "";
+      chartCard.style.display = "";
+      heroTitle.textContent = "Account detail view";
+      heroSub.textContent = "This URL is now shareable — it will auto-load this address and time window.";
+      heroHighlightText.textContent = "Tip — Bookmark this tab as your personal PnL dashboard.";
+      homeHelper.style.display = "none";
+    } else {
+      summaryCard.style.display = "none";
+      tablesCard.style.display = "none";
+      chartCard.style.display = "none";
+      heroTitle.textContent = "Scan a Hyperliquid account";
+      heroSub.textContent = "Home = clean, no tables. Once you scan an account, this becomes a shareable detail view URL.";
+      heroHighlightText.textContent = "Step 1 — Paste an address and hit Fetch.";
+      homeHelper.style.display = "block";
+    }
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    const posTab = document.getElementById("tab-positions");
+    const closedTab = document.getElementById("tab-closed");
+    const cashTab = document.getElementById("tab-cash");
+    const positionsBlock = document.getElementById("positionsBlock");
+    const closedBlock = document.getElementById("closedBlock");
+    const cashBlock = document.getElementById("cashBlock");
+    const title = document.getElementById("activeTableTitle");
+
+    if (tab === "positions") {
+      posTab.classList.add("tab-pill-active");
+      closedTab.classList.remove("tab-pill-active");
+      cashTab.classList.remove("tab-pill-active");
+      positionsBlock.style.display = "";
+      closedBlock.style.display = "none";
+      cashBlock.style.display = "none";
+      title.textContent = "Open positions";
+    } else if (tab === "closed") {
+      closedTab.classList.add("tab-pill-active");
+      posTab.classList.remove("tab-pill-active");
+      cashTab.classList.remove("tab-pill-active");
+      closedBlock.style.display = "";
+      positionsBlock.style.display = "none";
+      cashBlock.style.display = "none";
+      title.textContent = "Closed trades";
+    } else {
+      cashTab.classList.add("tab-pill-active");
+      posTab.classList.remove("tab-pill-active");
+      closedTab.classList.remove("tab-pill-active");
+      cashBlock.style.display = "";
+      positionsBlock.style.display = "none";
+      closedBlock.style.display = "none";
+      title.textContent = "Deposits / withdrawals";
+    }
+  }
+
+  function formatEquityLabel(ts, range) {
+    const d = new Date(ts);
+    if (range === "1d") {
+      return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    }
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  // Map UI range -> backend ?period=
+  function mapRangeToPeriod(range) {
+    if (range === "1d") return "day";       // HL perpDay (13 points)
+    if (range === "7d") return "week";      // HL perpWeek
+    if (range === "30d") return "month";    // HL perpMonth
+    if (range === "90d") return "90d";      // custom rolling 90d from perpAllTime
+    return "allTime";                       // default = full history
+  }
+
+  function renderEquityChart(range) {
+    const container = document.getElementById("chart-card");
+    if (!Array.isArray(equitySeriesAll) || equitySeriesAll.length === 0) {
+      container.style.display = "none";
+      return;
+    } else {
+      container.style.display = "";
+    }
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const firstTs = equitySeriesAll[0].ts;
+    const lastTs  = equitySeriesAll[equitySeriesAll.length - 1].ts;
+    const totalSpan = lastTs - firstTs;
+
+    // Normal range windowing
+    let cutoff = null;
+    if (range === "1d")       cutoff = lastTs - dayMs;
+    else if (range === "7d")  cutoff = lastTs - 7 * dayMs;
+    else if (range === "30d") cutoff = lastTs - 30 * dayMs;
+    else if (range === "90d") cutoff = lastTs - 90 * dayMs;
+
+    let filtered = equitySeriesAll;
+    if (cutoff !== null) {
+      filtered = equitySeriesAll.filter(p => p.ts >= cutoff);
+
+      // Fallback logic if too few points (except for 7D)
+      let minPoints = 2;
+      if (range === "1d") minPoints = 4;
+      else if (range === "30d") minPoints = 4;
+
+      if (range !== "7d" && filtered.length < minPoints) {
+        const N = Math.min(10, equitySeriesAll.length);
+        filtered = equitySeriesAll.slice(-N);
       }
-    
-      // 🔹 Decide how to label the X-axis:
-      // If the *total* span of the data is ≤ 1 day, always use time-of-day labels.
-      const labelRange =
-        totalSpan <= dayMs ? "1d" : range;
-    
-      const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
-      const values = filtered.map(p => p.equity);
-    
-      const ctx = document.getElementById("equityChart").getContext("2d");
-      if (equityChart) {
-        equityChart.data.labels = labels;
-        equityChart.data.datasets[0].data = values;
-        equityChart.update();
-      } else {
-        equityChart = new Chart(ctx, {
-          type: "line",
-          data: {
-            labels,
-            datasets: [
-              {
-                label: "Equity",
-                data: values,
-                borderWidth: 2,
-                pointRadius: 2,
-                pointHitRadius: 6,
-                tension: 0.25,
-                borderColor: "rgba(56,189,248,0.95)",
-                backgroundColor: "rgba(56,189,248,0.25)",
-                fill: false,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                callbacks: {
-                  label: function(ctx) {
-                    return "Equity: " + formatNumber(ctx.parsed.y, 2);
-                  }
+    }
+
+    // If the *total* span is ≤ 1 day, always show time-of-day labels
+    const labelRange = totalSpan <= dayMs ? "1d" : range;
+
+    const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
+    const values = filtered.map(p => p.equity);
+
+    const ctx = document.getElementById("equityChart").getContext("2d");
+    if (equityChart) {
+      equityChart.data.labels = labels;
+      equityChart.data.datasets[0].data = values;
+      equityChart.update();
+    } else {
+      equityChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Equity",
+              data: values,
+              borderWidth: 2,
+              pointRadius: 2,
+              pointHitRadius: 6,
+              tension: 0.25,
+              borderColor: "rgba(56,189,248,0.95)",
+              backgroundColor: "rgba(56,189,248,0.25)",
+              fill: false,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return "Equity: " + formatNumber(ctx.parsed.y, 2);
                 }
               }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { maxTicksLimit: 6 },
+              grid: { display: false },
             },
-            scales: {
-              x: {
-                ticks: {
-                  maxTicksLimit: 6,
-                },
-                grid: { display: false },
+            y: {
+              ticks: {
+                callback: function(value) { return formatNumber(value, 0); },
               },
-              y: {
-                ticks: {
-                  callback: function(value) { return formatNumber(value, 0); },
-                },
-                grid: {
-                  color: "rgba(31,41,55,0.7)",
-                },
-              },
+              grid: { color: "rgba(31,41,55,0.7)" },
             },
           },
-        });
-      }
-    
-      document.querySelectorAll(".range-btn").forEach(btn => {
-        if (btn.dataset.range === range) {
-          btn.classList.add("range-btn-active");
-        } else {
-          btn.classList.remove("range-btn-active");
-        }
+        },
       });
     }
 
-
-    async function runFetch(skipRedirect, rangeOverride, options = {}) {
-      const updateTables = options.updateTables !== false; // default true
-    
-      const baseUrlInput = document.getElementById("baseUrl");
-      const accountInput = document.getElementById("account");
-      const statusEl = document.getElementById("status");
-      const fetchBtn = document.getElementById("fetchBtn");
-    
-      const baseUrlRaw = baseUrlInput.value.trim();
-      const account = accountInput.value.trim();
-    
-      const period = rangeOverride || currentRange || "all";
-      currentRange = period;
-
-      if (!baseUrlRaw || !account) {
-        statusEl.textContent = "Please enter both base URL and account address.";
-        statusEl.className = "status status-error";
-        return;
+    document.querySelectorAll(".range-btn").forEach(btn => {
+      if (btn.dataset.range === range) {
+        btn.classList.add("range-btn-active");
+      } else {
+        btn.classList.remove("range-btn-active");
       }
+    });
+  }
 
-      const currentUrl = new URL(window.location.href);
-      const hasAccountInUrl = !!currentUrl.searchParams.get("account");
+  async function runFetch(skipRedirect, rangeOverride, options = {}) {
+    const updateTables = options.updateTables !== false; // default true
 
-      if (!skipRedirect && !hasAccountInUrl) {
-        currentUrl.searchParams.set("account", account);
-        currentUrl.searchParams.set("period", period);
-        currentUrl.searchParams.set("base", baseUrlRaw);
-        window.location.href = currentUrl.toString();
-        return;
-      }
+    const baseUrlInput = document.getElementById("baseUrl");
+    const accountInput = document.getElementById("account");
+    const statusEl = document.getElementById("status");
+    const fetchBtn = document.getElementById("fetchBtn");
 
-      setDetailMode(true);
-      switchTab("positions");
+    const baseUrlRaw = baseUrlInput.value.trim();
+    const account = accountInput.value.trim();
 
-      let baseUrl = baseUrlRaw.replace(/\/+$/, "");
+    // UI range (graph buttons): all, 90d, 30d, 7d, 1d
+    const uiRange = rangeOverride || currentRange || "all";
+    currentRange = uiRange;
+
+    // Backend ?period value: day/week/month/allTime/90d
+    const period = mapRangeToPeriod(uiRange);
+
+    if (!baseUrlRaw || !account) {
+      statusEl.textContent = "Please enter both base URL and account address.";
+      statusEl.className = "status status-error";
+      return;
+    }
+
+    const currentUrl = new URL(window.location.href);
+    const hasAccountInUrl = !!currentUrl.searchParams.get("account");
+
+    if (!skipRedirect && !hasAccountInUrl) {
+      currentUrl.searchParams.set("account", account);
+      currentUrl.searchParams.set("period", uiRange); // store UI range in URL
+      currentUrl.searchParams.set("base", baseUrlRaw);
+      window.location.href = currentUrl.toString();
+      return;
+    }
+
+    setDetailMode(true);
+    switchTab("positions");
+
+    let baseUrl = baseUrlRaw.replace(/\/+$/, "");
     const url =
       baseUrl +
       "/pnlClean?account=" +
@@ -970,253 +976,250 @@
       encodeURIComponent(period) +
       (updateTables ? "&positions=1&closed=1" : "&positions=0&closed=0");
 
-      statusEl.textContent = "Fetching from " + url + " …";
-      statusEl.className = "status";
-      fetchBtn.disabled = true;
+    statusEl.textContent = "Fetching from " + url + " …";
+    statusEl.className = "status";
+    fetchBtn.disabled = true;
 
-      try {
-        const res = await fetch(url, {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        });
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
 
-        if (!res.ok) {
-          const text = await res.text();
-          statusEl.textContent = "Request failed: " + res.status + " " + res.statusText;
-          statusEl.className = "status status-error";
-          console.error("Error response body:", text);
-          return;
-        }
+      if (!res.ok) {
+        const text = await res.text();
+        statusEl.textContent = "Request failed: " + res.status + " " + res.statusText;
+        statusEl.className = "status status-error";
+        console.error("Error response body:", text);
+        return;
+      }
 
-        const data = await res.json().catch(() => null);
-        if (!data) {
-          statusEl.textContent = "Received a non-JSON response from the Worker.";
-          statusEl.className = "status status-error";
-          return;
-        }
+      const data = await res.json().catch(() => null);
+      if (!data) {
+        statusEl.textContent = "Received a non-JSON response from the Worker.";
+        statusEl.className = "status status-error";
+        return;
+      }
 
-        statusEl.textContent = "OK · Response received.";
-        statusEl.className = "status status-ok";
+      statusEl.textContent = "OK · Response received.";
+      statusEl.className = "status status-ok";
 
-        // raw JSON block
-        const rawBlock = document.getElementById("rawJsonBlock");
-        const rawPre = document.getElementById("rawJson");
-        rawPre.textContent = JSON.stringify(data, null, 2);
-        rawBlock.style.display = "block";
+      // raw JSON block
+      const rawBlock = document.getElementById("rawJsonBlock");
+      const rawPre = document.getElementById("rawJson");
+      rawPre.textContent = JSON.stringify(data, null, 2);
+      rawBlock.style.display = "block";
 
-        // account label top-right
-        const accountLabel = document.getElementById("accountLabel");
-        const accDisplay = (data.account || account || "").toString();
-        accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
+      // account label top-right
+      const accountLabel = document.getElementById("accountLabel");
+      const accDisplay = (data.account || account || "").toString();
+      accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
 
-        // summary badges
-        const summaryBadges = document.getElementById("summaryBadges");
-        const summaryMeta = document.getElementById("summaryMeta");
-        summaryBadges.innerHTML = "";
-        summaryMeta.innerHTML = "";
+      // summary badges
+      const summaryBadges = document.getElementById("summaryBadges");
+      const summaryMeta = document.getElementById("summaryMeta");
+      summaryBadges.innerHTML = "";
+      summaryMeta.innerHTML = "";
 
-        const summary =
-          data.summary ||
-          data.portfolioSummary ||
-          data.portfolio ||
-          data.meta ||
-          data.roi ||
-          null;
+      const tradingPnl   = typeof data.perp_pnl === "number" ? data.perp_pnl : null;
+      const portfolioPnl = typeof data.balance_change === "number" ? data.balance_change : null;
 
-                // ---- SUMMARY: build from pnlClean fields (perp_pnl, balance_change, roi) ----
-        summaryBadges.innerHTML = "";
-        summaryMeta.innerHTML = "";
+      const roiObj = data.roi || {};
+      const tradingPct   = typeof roiObj.trading_pct === "number" ? roiObj.trading_pct : null;
+      const portfolioPct = typeof roiObj.portfolio_pct === "number" ? roiObj.portfolio_pct : null;
 
-        const tradingPnl   = typeof data.perp_pnl === "number" ? data.perp_pnl : null;
-        const portfolioPnl = typeof data.balance_change === "number" ? data.balance_change : null;
+      const pnlBadges = [];
 
-        const roiObj = data.roi || {};
-        const tradingPct   = typeof roiObj.trading_pct === "number" ? roiObj.trading_pct : null;
-        const portfolioPct = typeof roiObj.portfolio_pct === "number" ? roiObj.portfolio_pct : null;
+      if (portfolioPnl !== null) {
+        const color = portfolioPnl >= 0 ? "green" : "red";
+        pnlBadges.push(
+          createBadge("Portfolio PnL", "$" + formatNumber(portfolioPnl, 2), { color })
+        );
+      }
+      if (tradingPnl !== null) {
+        const color = tradingPnl >= 0 ? "green" : "red";
+        pnlBadges.push(
+          createBadge("Perp PnL", "$" + formatNumber(tradingPnl, 2), { color })
+        );
+      }
+      if (portfolioPct !== null) {
+        const color = portfolioPct >= 0 ? "green" : "red";
+        pnlBadges.push(
+          createBadge("Portfolio ROI", formatNumber(portfolioPct, 2) + "%", { color })
+        );
+      }
+      if (tradingPct !== null) {
+        const color = tradingPct >= 0 ? "green" : "red";
+        pnlBadges.push(
+          createBadge("Perp ROI", formatNumber(tradingPct, 2) + "%", { color })
+        );
+      }
 
-        const pnlBadges = [];
+      if (!pnlBadges.length) {
+        summaryBadges.innerHTML =
+          '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
+      } else {
+        pnlBadges.forEach(b => summaryBadges.appendChild(b));
+      }
 
-        if (portfolioPnl !== null) {
-          const color = portfolioPnl >= 0 ? "green" : "red";
-          pnlBadges.push(
-            createBadge("Portfolio PnL", "$" + formatNumber(portfolioPnl, 2), { color })
-          );
-        }
-        if (tradingPnl !== null) {
-          const color = tradingPnl >= 0 ? "green" : "red";
-          pnlBadges.push(
-            createBadge("Perp PnL", "$" + formatNumber(tradingPnl, 2), { color })
-          );
-        }
-        if (portfolioPct !== null) {
-          const color = portfolioPct >= 0 ? "green" : "red";
-          pnlBadges.push(
-            createBadge("Portfolio ROI", formatNumber(portfolioPct, 2) + "%", { color })
-          );
-        }
-        if (tradingPct !== null) {
-          const color = tradingPct >= 0 ? "green" : "red";
-          pnlBadges.push(
-            createBadge("Perp ROI", formatNumber(tradingPct, 2) + "%", { color })
-          );
-        }
+      const anySummary =
+        data.summary || data.portfolioSummary || data.portfolio || data.meta || null;
 
-        if (!pnlBadges.length) {
-          summaryBadges.innerHTML =
-            '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
-        } else {
-          pnlBadges.forEach(b => summaryBadges.appendChild(b));
-        }
+      const deposits =
+        anySummary?.deposits ??
+        anySummary?.deposited ??
+        data.adjustments?.deposits ??
+        null;
 
-        // ---- META: deposits / withdrawals / fees (if available) + current equity ----
-        const anySummary =
-          data.summary || data.portfolioSummary || data.portfolio || data.meta || null;
+      const withdrawals =
+        anySummary?.withdrawals ??
+        anySummary?.withdrawn ??
+        data.adjustments?.withdrawals ??
+        null;
 
-        const deposits =
-          anySummary?.deposits ??
-          anySummary?.deposited ??
-          data.adjustments?.deposits ??
-          null;
+      const fees = anySummary?.fees ?? null;
 
-        const withdrawals =
-          anySummary?.withdrawals ??
-          anySummary?.withdrawn ??
-          data.adjustments?.withdrawals ??
-          null;
+      const metaBadges = [];
+      if (deposits !== null) {
+        metaBadges.push(createBadge("Deposits", "$" + formatNumber(deposits, 2)));
+      }
+      if (withdrawals !== null) {
+        metaBadges.push(createBadge("Withdrawals", "$" + formatNumber(withdrawals, 2)));
+      }
+      if (fees !== null) {
+        metaBadges.push(createBadge("Fees", "$" + formatNumber(fees, 2)));
+      }
 
-        const fees = anySummary?.fees ?? null;
+      const balances = data.balances || {};
+      if (balances.perp_now != null) {
+        metaBadges.push(
+          createBadge("Perp equity now", "$" + formatNumber(balances.perp_now, 2))
+        );
+      }
+      if (balances.portfolio_now != null) {
+        metaBadges.push(
+          createBadge("Total equity now", "$" + formatNumber(balances.portfolio_now, 2))
+        );
+      }
 
-        const metaBadges = [];
-        if (deposits !== null) {
-          metaBadges.push(createBadge("Deposits", "$" + formatNumber(deposits, 2)));
-        }
-        if (withdrawals !== null) {
-          metaBadges.push(createBadge("Withdrawals", "$" + formatNumber(withdrawals, 2)));
-        }
-        if (fees !== null) {
-          metaBadges.push(createBadge("Fees", "$" + formatNumber(fees, 2)));
-        }
-
-        const balances = data.balances || {};
-        if (balances.perp_now != null) {
-          metaBadges.push(
-            createBadge("Perp equity now", "$" + formatNumber(balances.perp_now, 2))
-          );
-        }
-        if (balances.portfolio_now != null) {
-          metaBadges.push(
-            createBadge("Total equity now", "$" + formatNumber(balances.portfolio_now, 2))
-          );
-        }
-
-        if (!metaBadges.length) {
-          summaryMeta.innerHTML =
-            '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
-        } else {
-          metaBadges.forEach(b => summaryMeta.appendChild(b));
-        }
+      if (!metaBadges.length) {
+        summaryMeta.innerHTML =
+          '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
+      } else {
+        metaBadges.forEach(b => summaryMeta.appendChild(b));
+      }
 
       if (updateTables) {
         const positions = data.positions || data.openPositions || data.open || [];
         const closed = data.closed || data.closedTrades || data.trades || [];
-      
+
         const fundingEvents = data.fundingEvents || [];
         const fundingSummary = data.fundingSummary || {};
-      
+
         const positionsContainer = document.getElementById("positionsTableContainer");
         const closedContainer = document.getElementById("closedTableContainer");
         const cashContainer = document.getElementById("cashTableContainer");
-      
+
         buildTable(positionsContainer, positions, { type: "positions" });
         buildTable(closedContainer, closed, { type: "closed" });
-      
+
         renderFundingTable(cashContainer, fundingEvents, fundingSummary);
-      
+
         const posCount = document.getElementById("positionsCount");
         const closedCount = document.getElementById("closedCount");
         const cashCount = document.getElementById("cashCount");
-      
+
         posCount.textContent =
           "(" + (Array.isArray(positions) ? positions.length : 0) + ")";
         closedCount.textContent =
           "(" + (Array.isArray(closed) ? closed.length : 0) + ")";
-      
+
         const perpEventsCount = fundingEvents.filter(
           (ev) => ev.kind === "perpTransfer",
         ).length;
         cashCount.textContent = "(" + perpEventsCount + ")";
       }
 
-        // equity chart
-        equitySeriesAll = Array.isArray(data.equitySeries)
-          ? data.equitySeries
-          : [];
-        if (equitySeriesAll.length) {
-          equitySeriesAll = equitySeriesAll
-            .map((p) => ({
-              ts: Number(p.ts ?? p[0]),
-              equity: Number(p.equity ?? p[1]),
-            }))
-            .filter(
-              (p) => Number.isFinite(p.ts) && Number.isFinite(p.equity),
-            )
-            .sort((a, b) => a.ts - b.ts);
-            renderEquityChart(currentRange || "all");
-        } else {
-          const chartCard = document.getElementById("chart-card");
-          chartCard.style.display = "none";
-        }
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Error: " + (err?.message || err);
-        statusEl.className = "status status-error";
-      } finally {
-        fetchBtn.disabled = false;
-      }
-    }
-
-    function handleSubmit(event) {
-      if (event) event.preventDefault();
-      runFetch(false, currentRange, { updateTables: true });
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      const params = new URLSearchParams(window.location.search);
-      const baseParam = params.get("base");
-      const accountParam = params.get("account");
-      const periodParam = params.get("period");
-    
-      const baseInput = document.getElementById("baseUrl");
-      const accountInput = document.getElementById("account");
-    
-      if (baseParam) baseInput.value = baseParam;
-      if (accountParam) accountInput.value = accountParam;
-      if (periodParam) currentRange = periodParam;  // e.g. "all", "7d", "1d"
-    
-      document.getElementById("query-form").addEventListener("submit", handleSubmit);
-    
-      if (accountParam) {
-        setDetailMode(true);
-        switchTab("positions");
-        // full fetch: summary + tables + equity
-        runFetch(true, currentRange, { updateTables: true });
+      // equity chart
+      equitySeriesAll = Array.isArray(data.equitySeries)
+        ? data.equitySeries
+        : [];
+      if (equitySeriesAll.length) {
+        equitySeriesAll = equitySeriesAll
+          .map((p) => ({
+            ts: Number(p.ts ?? p[0]),
+            equity: Number(p.equity ?? p[1]),
+          }))
+          .filter(
+            (p) => Number.isFinite(p.ts) && Number.isFinite(p.equity),
+          )
+          .sort((a, b) => a.ts - b.ts);
+        // 🔹 Render using the current UI range (all / 90d / 30d / 7d / 1d)
+        renderEquityChart(currentRange);
       } else {
-        setDetailMode(false);
+        const chartCard = document.getElementById("chart-card");
+        chartCard.style.display = "none";
       }
-    
-      document.getElementById("tab-positions").addEventListener("click", () => switchTab("positions"));
-      document.getElementById("tab-closed").addEventListener("click", () => switchTab("closed"));
-      document.getElementById("tab-cash").addEventListener("click", () => switchTab("cash"));
-    
-      // Range buttons: re-fetch PnL/ROI/equity for the new window, keep tables as-is
-      document.querySelectorAll(".range-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const range = btn.dataset.range;   // "all", "90d", "30d", "7d", "1d"
-          currentRange = range;
-          runFetch(true, range, { updateTables: false });
-        });
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Error: " + (err?.message || err);
+      statusEl.className = "status status-error";
+    } finally {
+      fetchBtn.disabled = false;
+    }
+  }
+
+  function handleSubmit(event) {
+    if (event) event.preventDefault();
+    // First manual fetch: use whatever currentRange is (default = "all")
+    runFetch(false, currentRange, { updateTables: true });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+    const baseParam = params.get("base");
+    const accountParam = params.get("account");
+    const periodParam = params.get("period"); // this is our stored UI range now
+
+    const baseInput = document.getElementById("baseUrl");
+    const accountInput = document.getElementById("account");
+    const periodSelect = document.getElementById("period"); // still present in DOM, but no longer used for API
+
+    if (baseParam) baseInput.value = baseParam;
+    if (accountParam) accountInput.value = accountParam;
+
+    if (periodParam && ["all","90d","30d","7d","1d"].includes(periodParam)) {
+      currentRange = periodParam;
+    }
+
+    // Keep the dropdown showing something sane (not used for backend anymore)
+    if (periodSelect) {
+      periodSelect.value = "allTime";
+    }
+
+    document.getElementById("query-form").addEventListener("submit", handleSubmit);
+
+    if (accountParam) {
+      setDetailMode(true);
+      switchTab("positions");
+      runFetch(true, currentRange, { updateTables: true });
+    } else {
+      setDetailMode(false);
+    }
+
+    document.getElementById("tab-positions").addEventListener("click", () => switchTab("positions"));
+    document.getElementById("tab-closed").addEventListener("click", () => switchTab("closed"));
+    document.getElementById("tab-cash").addEventListener("click", () => switchTab("cash"));
+
+    document.querySelectorAll(".range-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const range = btn.dataset.range;
+        currentRange = range;
+        // Re-fetch PnL/ROI/equity for this window, but keep tables as-is
+        runFetch(true, range, { updateTables: false });
       });
     });
-  </script>
+  });
+</script>
 </body>
 </html>
