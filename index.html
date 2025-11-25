@@ -548,6 +548,11 @@
   let pnlChart = null;
   let currentRange = "all"; // UI range: all, 90d, 30d, 7d, 1d
 
+    // 🔹 Funding pagination state (ADD THIS)
+  let fundingEventsAll = [];     // full list from Worker
+  let fundingPage = 0;           // 0 = newest page
+  const FUNDING_PAGE_SIZE = 10;  // 10 per page
+
   function formatNumber(x, decimals = 2) {
     if (x === null || x === undefined || isNaN(Number(x))) return "";
     const n = Number(x);
@@ -684,92 +689,91 @@
     container.appendChild(table);
   }
 
-  function renderFundingTable(container, events, summary) {
+  function renderFundingTable(container) {
     container.innerHTML = "";
-
-    const perpEvents = (events || [])
-      .filter(ev => ev.kind === "perpTransfer")
-      .sort((a, b) => b.time - a.time); // newest first
-
-    // Summary block
-    const summaryDiv = document.createElement("div");
-    summaryDiv.style.padding = "8px 10px";
-    summaryDiv.style.fontSize = "0.78rem";
-    summaryDiv.style.color = "var(--muted)";
-
-    if (summary && (summary.perpInUSDC || summary.perpOutUSDC || summary.netPerpFlowUSDC)) {
-      const inUSDC = Number(summary.perpInUSDC || 0);
-      const outUSDC = Number(summary.perpOutUSDC || 0);
-      const netUSDC = Number(summary.netPerpFlowUSDC || 0);
-      const netSign = netUSDC > 0 ? "+" : netUSDC < 0 ? "−" : "";
-      const netAbs = Math.abs(netUSDC).toFixed(2);
-
-      summaryDiv.textContent =
-        `Perp account flow (window): ` +
-        `Deposits ${inUSDC.toFixed(2)} USDC · ` +
-        `Withdrawals ${outUSDC.toFixed(2)} USDC · ` +
-        `Net ${netSign}${netAbs} USDC`;
-    } else {
-      summaryDiv.textContent = "Perp deposits and withdrawals for this window.";
-    }
-
-    container.appendChild(summaryDiv);
-
-    if (!perpEvents.length) {
+  
+    const start = fundingPage * FUNDING_PAGE_SIZE;
+    const end = start + FUNDING_PAGE_SIZE;
+    const pageItems = fundingEventsAll.slice(start, end);
+  
+    // Header
+    const header = document.createElement("div");
+    header.style.padding = "8px 10px";
+    header.style.fontSize = "0.78rem";
+    header.style.color = "var(--muted)";
+    header.textContent =
+      `Showing ${start + 1}–${Math.min(end, fundingEventsAll.length)} of ${fundingEventsAll.length} transfers`;
+    container.appendChild(header);
+  
+    if (pageItems.length === 0) {
       const empty = document.createElement("div");
       empty.style.padding = "10px";
-      empty.style.fontSize = "0.78rem";
       empty.style.color = "var(--muted)";
-      empty.textContent = "No perp deposits or withdrawals in this period.";
+      empty.textContent = "No transfers.";
       container.appendChild(empty);
       return;
     }
-
+  
+    // Table
     const table = document.createElement("table");
-    const thead = document.createElement("thead");
-    const trHead = document.createElement("tr");
-    ["Date / Time", "Direction", "Amount (USDC)", "Note", "Tx Hash"].forEach(label => {
-      const th = document.createElement("th");
-      th.textContent = label;
-      trHead.appendChild(th);
-    });
-    thead.appendChild(trHead);
-    table.appendChild(thead);
-
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Date / Time</th>
+          <th>Direction</th>
+          <th>Amount (USDC)</th>
+          <th>Note</th>
+          <th>Tx Hash</th>
+        </tr>
+      </thead>
+    `;
     const tbody = document.createElement("tbody");
-
-    perpEvents.forEach(ev => {
+  
+    pageItems.forEach(ev => {
+      const shortHash =
+        ev.hash && ev.hash.length > 14
+          ? `${ev.hash.slice(0, 10)}…${ev.hash.slice(-6)}`
+          : (ev.hash || "");
+  
       const tr = document.createElement("tr");
-
-      const dateTd = document.createElement("td");
-      dateTd.textContent = formatDateTime(ev.time);
-
-      const dirTd = document.createElement("td");
-      dirTd.textContent =
-        ev.direction === "IN" ? "Deposit (spot → perp)" : "Withdrawal (perp → spot)";
-
-      const amtTd = document.createElement("td");
-      const val = Number(ev.usdcValue ?? ev.amount ?? 0);
-      amtTd.textContent = formatNumber(val, 2);
-
-      const noteTd = document.createElement("td");
-      noteTd.textContent = ev.note || "";
-
-      const hashTd = document.createElement("td");
-      const h = ev.hash || "";
-      hashTd.textContent =
-        h && h.length > 14 ? `${h.slice(0, 10)}…${h.slice(-6)}` : h;
-
-      tr.appendChild(dateTd);
-      tr.appendChild(dirTd);
-      tr.appendChild(amtTd);
-      tr.appendChild(noteTd);
-      tr.appendChild(hashTd);
+      tr.innerHTML = `
+        <td>${formatDateTime(ev.time)}</td>
+        <td>${ev.direction === "IN" ? "Deposit" : "Withdrawal"}</td>
+        <td>${formatNumber(ev.usdcValue ?? ev.amount ?? 0, 2)}</td>
+        <td>${ev.note || ""}</td>
+        <td>${shortHash}</td>
+      `;
       tbody.appendChild(tr);
     });
-
+  
     table.appendChild(tbody);
     container.appendChild(table);
+  
+    // Pagination buttons
+    const nav = document.createElement("div");
+    nav.style.marginTop = "10px";
+    nav.style.display = "flex";
+    nav.style.justifyContent = "space-between";
+  
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "← Prev";
+    prevBtn.disabled = fundingPage === 0;
+    prevBtn.onclick = () => {
+      fundingPage -= 1;
+      renderFundingTable(container);
+    };
+  
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "Next →";
+    nextBtn.disabled = end >= fundingEventsAll.length;
+    nextBtn.onclick = () => {
+      fundingPage += 1;
+      renderFundingTable(container);
+    };
+  
+    nav.appendChild(prevBtn);
+    nav.appendChild(nextBtn);
+    container.appendChild(nav);
   }
 
   function setDetailMode(isDetail) {
@@ -1217,7 +1221,11 @@
         buildTable(positionsContainer, positions, { type: "positions" });
         buildTable(closedContainer, closed, { type: "closed" });
 
-        renderFundingTable(cashContainer, fundingEvents, fundingSummary);
+        fundingEventsAll = (data.fundingEvents || []).filter(ev => ev.kind === "perpTransfer")
+          .sort((a, b) => b.time - a.time);   // newest first
+        
+        fundingPage = 0;
+        renderFundingTable(cashContainer);
 
         const posCount = document.getElementById("positionsCount");
         const closedCount = document.getElementById("closedCount");
