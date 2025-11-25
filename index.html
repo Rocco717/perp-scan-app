@@ -1324,7 +1324,7 @@
       equitySeriesAll = Array.isArray(data.equitySeries)
         ? data.equitySeries
         : [];
-      
+
       if (equitySeriesAll.length) {
         equitySeriesAll = equitySeriesAll
           .map((p) => ({
@@ -1336,12 +1336,12 @@
           )
           .sort((a, b) => a.ts - b.ts);
       }
-      
+
       // --- Perp PnL series ---
       pnlSeriesAll = Array.isArray(data.pnlSeries)
         ? data.pnlSeries
         : [];
-      
+
       if (pnlSeriesAll.length) {
         pnlSeriesAll = pnlSeriesAll
           .map((p) => ({
@@ -1353,17 +1353,9 @@
           )
           .sort((a, b) => a.ts - b.ts);
       }
-      
-      // 🔹 Finally render the unified chart
-      renderEquityChart(currentRange);
 
-        const tsList = pnlSeriesAll.map((pt) => pt.ts);
-        const values = pnlSeriesAll.map((pt) => pt.pnl);
-        renderPnlChart(tsList, values);
-      } else {
-        const pnlCard = document.getElementById("pnl-chart-card");
-        if (pnlCard) pnlCard.style.display = "none";
-      }
+      // 🔹 Finally render the unified chart (Perp PnL or Perp balance depending on activeChartMode)
+      renderEquityChart(currentRange);
 
     } catch (err) {
       console.error(err);
