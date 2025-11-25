@@ -616,15 +616,19 @@
 
     const displayNames = isPositions
       ? {
-          coinIdx: "Ticker",
+          coin: "Asset",                 // was "coin"
+          coinIdx: "Ticker",             // if this column is present
           side: "Direction",
+          size: "Size",                  // capital S
           entryPx: "Entry Price",
           markPx: "Current Price",
+          unrealizedPnl: "Unrealized PnL",
+          leverage: "Leverage",          // capital L
           value: "Position Value",
         }
       : isClosed
       ? {
-          netPnl: "Net Pnl",
+          netPnl: "Net PnL",
           sizeClosed: "Size Closed",
           avgEntryPx: "Entry Price",
           exitPx: "Exit Price",
@@ -633,7 +637,7 @@
       : {};
 
     const hidden = isPositions
-      ? new Set(["coinIdx", "notional", "basisPct", "unrealizedPct", "roiPct", "roePct"])
+      ? new Set(["notional", "basisPct", "unrealizedPct", "roiPct", "roePct"])
       : isClosed
       ? new Set(["endTs"])
       : new Set([]);
