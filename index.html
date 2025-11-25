@@ -303,27 +303,30 @@
     .tabs-row {
       display: inline-flex;
       gap: 8px;
-      background: rgba(15,23,42,0.85);
+      background: rgba(0,0,0,0.6);           /* darker pill group */
       padding: 4px;
       border-radius: 999px;
-      border: 1px solid rgba(31,41,55,0.9);
+      border: 1px solid var(--border);
       margin-bottom: 8px;
     }
     .tab-pill {
       border-radius: 999px;
       border: none;
-      background: transparent;
-      color: var(--muted);
-      padding: 5px 12px;
+      background: transparent;               /* no background */
+      color: var(--muted);                   /* soft grey text */
+      padding: 6px 14px;
       font-size: 0.78rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
       cursor: pointer;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+    .tab-pill:hover {
+      color: var(--text);                    /* brighter on hover */
+      background: rgba(255,255,255,0.05);    /* subtle hover */
     }
     .tab-pill-active {
-      background: #16a34a;
-      color: #ecfdf3;
+      background: rgba(255,255,255,0.08);    /* slight brighter bg, NOT green */
+      color: #ffffff;                        /* white text */
+    }
     }
     .tab-count {
       font-size: 0.72rem;
