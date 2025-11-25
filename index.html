@@ -616,8 +616,7 @@
 
     const displayNames = isPositions
       ? {
-          coin: "Asset",                 // was "coin"
-          coinIdx: "Ticker",             // if this column is present
+          coin: "Asset",                 // was "coin"          
           side: "Direction",
           size: "Size",                  // capital S
           entryPx: "Entry Price",
@@ -637,7 +636,7 @@
       : {};
 
     const hidden = isPositions
-      ? new Set(["notional", "basisPct", "unrealizedPct", "roiPct", "roePct"])
+      ? new Set(["coinIdx", "notional", "basisPct", "unrealizedPct", "roiPct", "roePct"])
       : isClosed
       ? new Set(["endTs"])
       : new Set([]);
