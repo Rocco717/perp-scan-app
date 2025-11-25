@@ -635,7 +635,7 @@
       : {};
 
     const hidden = isPositions
-      ? new Set(["notional", "basisPct", "unrealizedPct", "roiPct"])
+      ? new Set(["coinIdx", "notional", "basisPct", "unrealizedPct", "roiPct"])
       : isClosed
       ? new Set(["endTs"])
       : new Set([]);
@@ -670,8 +670,12 @@
       keys.forEach((k) => {
         const td = document.createElement("td");
         let v = r[k];
+    
         if (typeof v === "number") {
-          if (k === "durationMs" && isClosed) {
+          // 🎯 Special case: leverage → "5x"
+          if (k === "leverage") {
+            td.textContent = v ? `${v}x` : "";
+          } else if (k === "durationMs" && isClosed) {
             td.textContent = humanizeDuration(v);
           } else {
             const decimals =
@@ -681,13 +685,13 @@
         } else {
           td.textContent = v == null ? "" : String(v);
         }
+    
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
     container.appendChild(table);
-  }
 
   function renderFundingTable(container) {
     container.innerHTML = "";
