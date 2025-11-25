@@ -348,7 +348,7 @@
       background: rgba(56,189,248,0.2);
       color: #e0f2fe;
     }
-    #equityChartContainer {
+    #perpBalanceChartContainer {
       position: relative;
       width: 100%;
       height: 220px;
@@ -422,7 +422,7 @@
       <section class="card" id="chart-card" style="display:none;">
         <div class="card-header">
           <div>
-            <div class="card-title">Equity curve</div>
+            <div class="card-title">Perp Balance</div>
             <div class="card-sub">Account value over time for this window.</div>
           </div>
           <div class="range-row">
@@ -433,8 +433,8 @@
             <button type="button" class="range-btn" data-range="1d">1D</button>
           </div>
         </div>
-        <div id="equityChartContainer">
-          <canvas id="equityChart"></canvas>
+        <div id="perpBalanceChartContainer">
+          <canvas id="perpBalanceChart"></canvas>
         </div>
       </section>
 
@@ -515,8 +515,8 @@
 
 <script>
   let activeTab = "positions";
-  let equitySeriesAll = [];
-  let equityChart = null;
+  let perpBalanceSeriesAll = [];
+  let perpBalanceChart = null;
   let currentRange = "all"; // UI range: all, 90d, 30d, 7d, 1d
 
   function formatNumber(x, decimals = 2) {
@@ -808,7 +808,7 @@
     }
   }
 
-  function formatEquityLabel(ts, range) {
+  function formatPerpBalanceLabel(ts, range) {
     const d = new Date(ts);
     if (range === "1d") {
       return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -825,9 +825,9 @@
     return "allTime";                       // default = full history
   }
 
-  function renderEquityChart(range) {
+  function renderPerpBalanceChart(range) {
     const container = document.getElementById("chart-card");
-    if (!Array.isArray(equitySeriesAll) || equitySeriesAll.length === 0) {
+    if (!Array.isArray(perpBalanceSeriesAll) || perpBalanceSeriesAll.length === 0) {
       container.style.display = "none";
       return;
     } else {
@@ -835,8 +835,8 @@
     }
 
     const dayMs = 24 * 60 * 60 * 1000;
-    const firstTs = equitySeriesAll[0].ts;
-    const lastTs  = equitySeriesAll[equitySeriesAll.length - 1].ts;
+    const firstTs = perpBalanceSeriesAll[0].ts;
+    const lastTs  = perpBalanceSeriesAll[perpBalanceSeriesAll.length - 1].ts;
     const totalSpan = lastTs - firstTs;
 
     // Normal range windowing
@@ -846,9 +846,9 @@
     else if (range === "30d") cutoff = lastTs - 30 * dayMs;
     else if (range === "90d") cutoff = lastTs - 90 * dayMs;
 
-    let filtered = equitySeriesAll;
+    let filtered = perpBalanceSeriesAll;
     if (cutoff !== null) {
-      filtered = equitySeriesAll.filter(p => p.ts >= cutoff);
+      filtered = perpBalanceSeriesAll.filter(p => p.ts >= cutoff);
 
       // Fallback logic if too few points (except for 7D)
       let minPoints = 2;
@@ -856,30 +856,30 @@
       else if (range === "30d") minPoints = 4;
 
       if (range !== "7d" && filtered.length < minPoints) {
-        const N = Math.min(10, equitySeriesAll.length);
-        filtered = equitySeriesAll.slice(-N);
+        const N = Math.min(10, perpBalanceSeriesAll.length);
+        filtered = perpBalanceSeriesAll.slice(-N);
       }
     }
 
     // If the *total* span is ≤ 1 day, always show time-of-day labels
     const labelRange = totalSpan <= dayMs ? "1d" : range;
 
-    const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
+    const labels = filtered.map(p => formatPerpBalanceLabel(p.ts, labelRange));
     const values = filtered.map(p => p.equity);
 
-    const ctx = document.getElementById("equityChart").getContext("2d");
-    if (equityChart) {
-      equityChart.data.labels = labels;
-      equityChart.data.datasets[0].data = values;
-      equityChart.update();
+    const ctx = document.getElementById("perpBalanceChart").getContext("2d");
+    if (perpBalanceChart) {
+      perpBalanceChart.data.labels = labels;
+      perpBalanceChart.data.datasets[0].data = values;
+      perpBalanceChart.update();
     } else {
-      equityChart = new Chart(ctx, {
+      perpBalanceChart = new Chart(ctx, {
         type: "line",
         data: {
           labels,
           datasets: [
             {
-              label: "Equity",
+              label: "Perp balance",
               data: values,
               borderWidth: 2,
               pointRadius: 2,
@@ -899,7 +899,7 @@
             tooltip: {
               callbacks: {
                 label: function(ctx) {
-                  return "Equity: " + formatNumber(ctx.parsed.y, 2);
+                  return "Perp balance: " + formatNumber(ctx.parsed.y, 2);
                 }
               }
             }
@@ -1093,12 +1093,12 @@
       const balances = data.balances || {};
       if (balances.perp_now != null) {
         metaBadges.push(
-          createBadge("Perp equity now", "$" + formatNumber(balances.perp_now, 2))
+          createBadge("Perp balance now", "$" + formatNumber(balances.perp_now, 2))
         );
       }
       if (balances.portfolio_now != null) {
         metaBadges.push(
-          createBadge("Total equity now", "$" + formatNumber(balances.portfolio_now, 2))
+          createBadge("Portfolio balance now", "$" + formatNumber(balances.portfolio_now, 2))
         );
       }
 
@@ -1140,12 +1140,12 @@
         cashCount.textContent = "(" + perpEventsCount + ")";
       }
 
-      // equity chart
-      equitySeriesAll = Array.isArray(data.equitySeries)
+      // perp balance chart
+      perpBalanceSeriesAll = Array.isArray(data.equitySeries)
         ? data.equitySeries
         : [];
-      if (equitySeriesAll.length) {
-        equitySeriesAll = equitySeriesAll
+      if (perpBalanceSeriesAll.length) {
+        perpBalanceSeriesAll = perpBalanceSeriesAll
           .map((p) => ({
             ts: Number(p.ts ?? p[0]),
             equity: Number(p.equity ?? p[1]),
@@ -1155,7 +1155,7 @@
           )
           .sort((a, b) => a.ts - b.ts);
         // 🔹 Render using the current UI range (all / 90d / 30d / 7d / 1d)
-        renderEquityChart(currentRange);
+        renderPerpBalanceChart(currentRange);
       } else {
         const chartCard = document.getElementById("chart-card");
         chartCard.style.display = "none";
@@ -1215,7 +1215,7 @@
       btn.addEventListener("click", () => {
         const range = btn.dataset.range;
         currentRange = range;
-        // Re-fetch PnL/ROI/equity for this window, but keep tables as-is
+        // Re-fetch PnL/ROI/perp balance for this window, but keep tables as-is
         runFetch(true, range, { updateTables: false });
       });
     });
@@ -1223,3 +1223,4 @@
 </script>
 </body>
 </html>
+
