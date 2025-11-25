@@ -8,26 +8,22 @@
   <style>
     :root {
       color-scheme: dark;
-      --bg: #020617;
-      --bg-elevated: #020617;
-      --bg-card: #020617;
-      --accent: #38bdf8;
-      --accent-soft: rgba(56,189,248,0.25);
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --border: #1f2937;
-      --danger: #f97373;
-      --success: #4ade80;
-      --radius-lg: 14px;
-      --radius-md: 10px;
-      --shadow-soft: 0 18px 45px rgba(15,23,42,0.8);
+      --bg: #000000;            /* Pure black background */
+      --card: #0d0d0d;          /* Slightly lifted card background */
+      --border: #1a1a1a;        /* Subtle card borders */
+      --muted: #6b6b6b;         /* Muted gray text */
+      --text: #dcdcdc;          /* Soft off-white text */
+      --pill-bg: #111111;       /* Dark pill buttons */
+      --pill-text: #e5e5e5;
+      --success: #3be879;       /* Bright neon green */
+      --danger: #ff5555;        /* Clean red */
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text","Segoe UI", sans-serif;
       min-height: 100vh;
-      background: radial-gradient(circle at top, #0f172a 0, #020617 45%, #000 100%);
+      background: #000000;              /* or: background: var(--bg); */
       color: var(--text);
       display: flex;
       justify-content: center;
