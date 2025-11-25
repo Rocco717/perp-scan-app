@@ -411,23 +411,8 @@
               <input id="account" name="account" type="text" placeholder="0x… / address" required />
             </div>
             <div class="field">
-              <label for="period">Period</label>
-              <div style="display:flex; gap:8px;">
-              <select id="period" name="period" style="flex:1;">
-                <!-- Uses HL allTime (full account history) -->
-                <option value="allTime" selected>All history</option>
-              
-                <!-- Optional rolling window, still supported by backend "Xd" parsing -->
-                <option value="365d">Last 365 days (rolling)</option>
-              
-                <!-- These three now use HL’s own day/week/month curves -->
-                <option value="month">Last 30 days (HL month)</option>
-                <option value="week">Last 7 days (HL week)</option>
-                <option value="day">Last 24h (HL day)</option>
-              </select>
-
-                <button id="fetchBtn" type="submit">Fetch</button>
-              </div>
+              <label>&nbsp;</label>
+              <button id="fetchBtn" type="submit" style="width:100%;">Fetch</button>
             </div>
           </div>
         </form>
@@ -532,6 +517,7 @@
     let activeTab = "positions";
     let equitySeriesAll = [];
     let equityChart = null;
+    let currentRange = "all";  // default display + backend period
 
     function formatNumber(x, decimals = 2) {
       if (x === null || x === undefined || isNaN(Number(x))) return "";
@@ -1199,36 +1185,34 @@
       const baseParam = params.get("base");
       const accountParam = params.get("account");
       const periodParam = params.get("period");
-
+    
       const baseInput = document.getElementById("baseUrl");
       const accountInput = document.getElementById("account");
-      const periodSelect = document.getElementById("period");
-
+    
       if (baseParam) baseInput.value = baseParam;
       if (accountParam) accountInput.value = accountParam;
-      if (periodParam && Array.from(periodSelect.options).some(o => o.value === periodParam)) {
-        periodSelect.value = periodParam;
-      }
-
+      if (periodParam) currentRange = periodParam;  // e.g. "all", "7d", "1d"
+    
       document.getElementById("query-form").addEventListener("submit", handleSubmit);
-
+    
       if (accountParam) {
         setDetailMode(true);
         switchTab("positions");
+        // full fetch: summary + tables + equity
         runFetch(true, currentRange, { updateTables: true });
       } else {
         setDetailMode(false);
       }
-
+    
       document.getElementById("tab-positions").addEventListener("click", () => switchTab("positions"));
       document.getElementById("tab-closed").addEventListener("click", () => switchTab("closed"));
       document.getElementById("tab-cash").addEventListener("click", () => switchTab("cash"));
-
+    
+      // Range buttons: re-fetch PnL/ROI/equity for the new window, keep tables as-is
       document.querySelectorAll(".range-btn").forEach(btn => {
         btn.addEventListener("click", () => {
-          const range = btn.dataset.range;
+          const range = btn.dataset.range;   // "all", "90d", "30d", "7d", "1d"
           currentRange = range;
-          // Re-fetch for new PnL/ROI/equity, but keep tables as-is
           runFetch(true, range, { updateTables: false });
         });
       });
