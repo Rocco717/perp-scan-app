@@ -680,7 +680,7 @@
           td.textContent = humanizeDuration(v);
       
         // 🎯 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
-        } else if (k === "Unrealized PnL") {
+        } else if (k === "unrealizedPnl") {
           const sign = v >= 0 ? "" : "-";
           const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
       
