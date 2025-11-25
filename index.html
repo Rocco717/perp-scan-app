@@ -879,7 +879,7 @@
           labels,
           datasets: [
             {
-              label: "Equity",
+              label: "Perp balance",
               data: values,
               borderWidth: 2,
               pointRadius: 2,
@@ -899,7 +899,7 @@
             tooltip: {
               callbacks: {
                 label: function(ctx) {
-                  return "Equity: " + formatNumber(ctx.parsed.y, 2);
+                  return "Perp balance: " + formatNumber(ctx.parsed.y, 2);
                 }
               }
             }
@@ -1093,12 +1093,12 @@
       const balances = data.balances || {};
       if (balances.perp_now != null) {
         metaBadges.push(
-          createBadge("Perp equity now", "$" + formatNumber(balances.perp_now, 2))
+          createBadge("Perp balance now", "$" + formatNumber(balances.perp_now, 2))
         );
       }
       if (balances.portfolio_now != null) {
         metaBadges.push(
-          createBadge("Total equity now", "$" + formatNumber(balances.portfolio_now, 2))
+          createBadge("Portfolio balance now", "$" + formatNumber(balances.portfolio_now, 2))
         );
       }
 
