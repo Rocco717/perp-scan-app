@@ -1161,7 +1161,7 @@
               (p) => Number.isFinite(p.ts) && Number.isFinite(p.equity),
             )
             .sort((a, b) => a.ts - b.ts);
-          renderEquityChart("all");
+            renderEquityChart(currentRange || "all");
         } else {
           const chartCard = document.getElementById("chart-card");
           chartCard.style.display = "none";
