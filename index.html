@@ -941,16 +941,19 @@
     }
 
 
-    async function runFetch(skipRedirect) {
+    async function runFetch(skipRedirect, rangeOverride, options = {}) {
+      const updateTables = options.updateTables !== false; // default true
+    
       const baseUrlInput = document.getElementById("baseUrl");
       const accountInput = document.getElementById("account");
-      const periodSelect = document.getElementById("period");
       const statusEl = document.getElementById("status");
       const fetchBtn = document.getElementById("fetchBtn");
-
+    
       const baseUrlRaw = baseUrlInput.value.trim();
       const account = accountInput.value.trim();
-      const period = periodSelect.value || "all";
+    
+      const period = rangeOverride || currentRange || "all";
+      currentRange = period;
 
       if (!baseUrlRaw || !account) {
         statusEl.textContent = "Please enter both base URL and account address.";
@@ -973,13 +976,13 @@
       switchTab("positions");
 
       let baseUrl = baseUrlRaw.replace(/\/+$/, "");
-      const url =
-        baseUrl +
-        "/pnlClean?account=" +
-        encodeURIComponent(account) +
-        "&period=" +
-        encodeURIComponent(period) +
-        "&positions=1&closed=1";
+    const url =
+      baseUrl +
+      "/pnlClean?account=" +
+      encodeURIComponent(account) +
+      "&period=" +
+      encodeURIComponent(period) +
+      (updateTables ? "&positions=1&closed=1" : "&positions=0&closed=0");
 
       statusEl.textContent = "Fetching from " + url + " …";
       statusEl.className = "status";
@@ -1127,41 +1130,36 @@
           metaBadges.forEach(b => summaryMeta.appendChild(b));
         }
 
-        // positions / closed from backend
+      if (updateTables) {
         const positions = data.positions || data.openPositions || data.open || [];
         const closed = data.closed || data.closedTrades || data.trades || [];
-
-        // NEW: funding events from backend (perp deposits/withdrawals)
+      
         const fundingEvents = data.fundingEvents || [];
         const fundingSummary = data.fundingSummary || {};
-
-        const positionsContainer = document.getElementById(
-          "positionsTableContainer",
-        );
-        const closedContainer =
-          document.getElementById("closedTableContainer");
+      
+        const positionsContainer = document.getElementById("positionsTableContainer");
+        const closedContainer = document.getElementById("closedTableContainer");
         const cashContainer = document.getElementById("cashTableContainer");
-
+      
         buildTable(positionsContainer, positions, { type: "positions" });
         buildTable(closedContainer, closed, { type: "closed" });
-
-        // custom perp deposits/withdrawals table
+      
         renderFundingTable(cashContainer, fundingEvents, fundingSummary);
-
-        // tab counts
+      
         const posCount = document.getElementById("positionsCount");
         const closedCount = document.getElementById("closedCount");
         const cashCount = document.getElementById("cashCount");
-
+      
         posCount.textContent =
           "(" + (Array.isArray(positions) ? positions.length : 0) + ")";
         closedCount.textContent =
           "(" + (Array.isArray(closed) ? closed.length : 0) + ")";
-
+      
         const perpEventsCount = fundingEvents.filter(
           (ev) => ev.kind === "perpTransfer",
         ).length;
         cashCount.textContent = "(" + perpEventsCount + ")";
+      }
 
         // equity chart
         equitySeriesAll = Array.isArray(data.equitySeries)
@@ -1193,7 +1191,7 @@
 
     function handleSubmit(event) {
       if (event) event.preventDefault();
-      runFetch(false);
+      runFetch(false, currentRange, { updateTables: true });
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -1217,7 +1215,7 @@
       if (accountParam) {
         setDetailMode(true);
         switchTab("positions");
-        runFetch(true);
+        runFetch(true, currentRange, { updateTables: true });
       } else {
         setDetailMode(false);
       }
@@ -1229,7 +1227,9 @@
       document.querySelectorAll(".range-btn").forEach(btn => {
         btn.addEventListener("click", () => {
           const range = btn.dataset.range;
-          renderEquityChart(range);
+          currentRange = range;
+          // Re-fetch for new PnL/ROI/equity, but keep tables as-is
+          runFetch(true, range, { updateTables: false });
         });
       });
     });
