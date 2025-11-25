@@ -354,6 +354,12 @@
       height: 220px;
       margin-top: 8px;
     }
+    #pnlChartContainer {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      margin-top: 8px;
+    }
     @media (max-width: 840px) {
       body { padding: 12px; }
       header { flex-direction: column; align-items: flex-start; }
@@ -438,6 +444,27 @@
         </div>
       </section>
 
+      <section class="card" id="pnl-chart-card" style="display:none;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Perp PnL</div>
+            <div class="card-sub">Realized + funding PnL for this window.</div>
+          </div>
+      
+          <div class="range-row">
+            <button type="button" class="range-btn range-btn-active" data-range="all">All</button>
+            <button type="button" class="range-btn" data-range="90d">90D</button>
+            <button type="button" class="range-btn" data-range="30d">30D</button>
+            <button type="button" class="range-btn" data-range="7d">7D</button>
+            <button type="button" class="range-btn" data-range="1d">1D</button>
+          </div>
+        </div>
+      
+        <div id="pnlChartContainer">
+          <canvas id="pnlChart"></canvas>
+        </div>
+      </section>
+
       <section class="card" id="summary-card" style="display:none;">
         <div class="card-header">
           <div>
@@ -517,6 +544,8 @@
   let activeTab = "positions";
   let equitySeriesAll = [];
   let equityChart = null;
+  let pnlSeriesAll = [];
+  let pnlChart = null;
   let currentRange = "all"; // UI range: all, 90d, 30d, 7d, 1d
 
   function formatNumber(x, decimals = 2) {
@@ -747,15 +776,17 @@
     const summaryCard = document.getElementById("summary-card");
     const tablesCard = document.getElementById("tables-card");
     const chartCard = document.getElementById("chart-card");
+    const pnlChartCard = document.getElementById("pnl-chart-card");
     const heroTitle = document.getElementById("hero-title");
     const heroSub = document.getElementById("hero-sub");
     const heroHighlightText = document.getElementById("hero-highlight-text");
     const homeHelper = document.getElementById("home-helper");
-
+  
     if (isDetail) {
       summaryCard.style.display = "";
       tablesCard.style.display = "";
       chartCard.style.display = "";
+      if (pnlChartCard) pnlChartCard.style.display = "";
       heroTitle.textContent = "Account detail view";
       heroSub.textContent = "This URL is now shareable — it will auto-load this address and time window.";
       heroHighlightText.textContent = "Tip — Bookmark this tab as your personal PnL dashboard.";
@@ -764,6 +795,7 @@
       summaryCard.style.display = "none";
       tablesCard.style.display = "none";
       chartCard.style.display = "none";
+      if (pnlChartCard) pnlChartCard.style.display = "none";
       heroTitle.textContent = "Scan a Hyperliquid account";
       heroSub.textContent = "Home = clean, no tables. Once you scan an account, this becomes a shareable detail view URL.";
       heroHighlightText.textContent = "Step 1 — Paste an address and hit Fetch.";
@@ -928,6 +960,68 @@
       }
     });
   }
+
+  function renderPnlChart(tsList, values) {
+  if (!Array.isArray(tsList) || !Array.isArray(values) || tsList.length === 0) {
+    const pnlCard = document.getElementById("pnl-chart-card");
+    if (pnlCard) pnlCard.style.display = "none";
+    return;
+  }
+
+  const pnlCard = document.getElementById("pnl-chart-card");
+  if (!pnlCard) return;
+
+  pnlCard.style.display = "block";
+
+  const ctx2 = document.getElementById("pnlChart");
+  if (!ctx2) return;
+
+  if (pnlChart) {
+    pnlChart.destroy();
+    pnlChart = null;
+  }
+
+  pnlChart = new Chart(ctx2, {
+    type: "line",
+    data: {
+      labels: tsList.map((ts) =>
+        formatEquityLabel(ts, currentRange === "1d")
+      ),
+      datasets: [
+        {
+          label: "Perp PnL",
+          data: values,
+          borderWidth: 2,
+          pointRadius: 2,
+          pointHitRadius: 6,
+          tension: 0.25,
+          borderColor: "rgba(34,197,94,0.95)",     // greenish
+          backgroundColor: "rgba(34,197,94,0.20)", // transparent green
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          ticks: {
+            callback: (val) => formatNumber(val, 2),
+          },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => "PnL: " + formatNumber(ctx.parsed.y, 2),
+          },
+        },
+      },
+    },
+  });
+}
 
   async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const updateTables = options.updateTables !== false; // default true
@@ -1144,6 +1238,7 @@
       equitySeriesAll = Array.isArray(data.equitySeries)
         ? data.equitySeries
         : [];
+
       if (equitySeriesAll.length) {
         equitySeriesAll = equitySeriesAll
           .map((p) => ({
@@ -1154,20 +1249,37 @@
             (p) => Number.isFinite(p.ts) && Number.isFinite(p.equity),
           )
           .sort((a, b) => a.ts - b.ts);
+
         // 🔹 Render using the current UI range (all / 90d / 30d / 7d / 1d)
         renderEquityChart(currentRange);
       } else {
         const chartCard = document.getElementById("chart-card");
         chartCard.style.display = "none";
       }
-    } catch (err) {
-      console.error(err);
-      statusEl.textContent = "Error: " + (err?.message || err);
-      statusEl.className = "status status-error";
-    } finally {
-      fetchBtn.disabled = false;
-    }
-  }
+
+      // PnL chart
+      pnlSeriesAll = Array.isArray(data.pnlSeries)
+        ? data.pnlSeries
+        : [];
+
+      if (pnlSeriesAll.length) {
+        pnlSeriesAll = pnlSeriesAll
+          .map((p) => ({
+            ts: Number(p.ts ?? p[0]),
+            pnl: Number(p.pnl ?? p[1]),
+          }))
+          .filter(
+            (p) => Number.isFinite(p.ts) && Number.isFinite(p.pnl),
+          )
+          .sort((a, b) => a.ts - b.ts);
+
+        const tsList = pnlSeriesAll.map((pt) => pt.ts);
+        const values = pnlSeriesAll.map((pt) => pt.pnl);
+        renderPnlChart(tsList, values);
+      } else {
+        const pnlCard = document.getElementById("pnl-chart-card");
+        if (pnlCard) pnlCard.style.display = "none";
+      }
 
   function handleSubmit(event) {
     if (event) event.preventDefault();
