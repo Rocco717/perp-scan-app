@@ -428,9 +428,27 @@
       <section class="card" id="chart-card" style="display:none;">
         <div class="card-header">
           <div>
-            <div class="card-title">Perp balance</div>
-            <div class="card-sub">Account value over time for this window.</div>
+            <!-- Chart mode toggle -->
+            <div class="tabs-row" id="chart-mode-tabs">
+              <button type="button"
+                      class="tab-pill tab-pill-active"
+                      id="chart-tab-pnl"
+                      data-chart="pnl">
+                <span>Perp PnL</span>
+              </button>
+              <button type="button"
+                      class="tab-pill"
+                      id="chart-tab-balance"
+                      data-chart="balance">
+                <span>Perp balance</span>
+              </button>
+            </div>
+            <div class="card-sub" id="chart-subtitle">
+              Realized + funding PnL for this window.
+            </div>
           </div>
+      
+          <!-- Same range buttons as before -->
           <div class="range-row">
             <button type="button" class="range-btn range-btn-active" data-range="all">All</button>
             <button type="button" class="range-btn" data-range="90d">90D</button>
@@ -439,29 +457,9 @@
             <button type="button" class="range-btn" data-range="1d">1D</button>
           </div>
         </div>
+      
         <div id="equityChartContainer">
           <canvas id="equityChart"></canvas>
-        </div>
-      </section>
-
-      <section class="card" id="pnl-chart-card" style="display:none;">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Perp PnL</div>
-            <div class="card-sub">Realized + funding PnL for this window.</div>
-          </div>
-      
-          <div class="range-row">
-            <button type="button" class="range-btn range-btn-active" data-range="all">All</button>
-            <button type="button" class="range-btn" data-range="90d">90D</button>
-            <button type="button" class="range-btn" data-range="30d">30D</button>
-            <button type="button" class="range-btn" data-range="7d">7D</button>
-            <button type="button" class="range-btn" data-range="1d">1D</button>
-          </div>
-        </div>
-      
-        <div id="pnlChartContainer">
-          <canvas id="pnlChart"></canvas>
         </div>
       </section>
 
@@ -543,10 +541,10 @@
 <script>
   let activeTab = "positions";
   let equitySeriesAll = [];
-  let equityChart = null;
   let pnlSeriesAll = [];
-  let pnlChart = null;
-  let currentRange = "all"; // UI range: all, 90d, 30d, 7d, 1d
+  let equityChart = null;
+  let currentRange = "all";      // UI range: all, 90d, 30d, 7d, 1d
+  let activeChartMode = "pnl";   // "pnl" or "balance"
 
     // 🔹 Funding pagination state (ADD THIS)
   let fundingEventsAll = [];     // full list from Worker
@@ -889,52 +887,100 @@
     return "allTime";                       // default = full history
   }
 
-  function renderEquityChart(range) {
-    const container = document.getElementById("chart-card");
-    if (!Array.isArray(equitySeriesAll) || equitySeriesAll.length === 0) {
-      container.style.display = "none";
-      return;
+    function updateChartSubtitle() {
+    const sub = document.getElementById("chart-subtitle");
+    if (!sub) return;
+  
+    if (activeChartMode === "pnl") {
+      sub.textContent = "Realized + funding PnL for this window.";
     } else {
-      container.style.display = "";
+      sub.textContent = "Perp account value over time for this window.";
     }
+  }
 
+  function renderEquityChart(range) {
+    const card = document.getElementById("chart-card");
+    const hasEquity = Array.isArray(equitySeriesAll) && equitySeriesAll.length > 0;
+    const hasPnl = Array.isArray(pnlSeriesAll) && pnlSeriesAll.length > 0;
+  
+    // Nothing to show
+    if (!hasEquity && !hasPnl) {
+      if (card) card.style.display = "none";
+      return;
+    }
+    if (card) card.style.display = "";
+  
+    // Choose source series based on chart mode
+    let source = [];
+    if (activeChartMode === "pnl" && hasPnl) {
+      source = pnlSeriesAll.map(pt => ({ ts: pt.ts, value: pt.pnl }));
+    } else if (activeChartMode === "balance" && hasEquity) {
+      source = equitySeriesAll.map(pt => ({ ts: pt.ts, value: pt.equity }));
+    }
+  
+    // Fallback: if selected mode has no data, switch to the other
+    if (!source.length) {
+      if (hasEquity) {
+        activeChartMode = "balance";
+        source = equitySeriesAll.map(pt => ({ ts: pt.ts, value: pt.equity }));
+      } else if (hasPnl) {
+        activeChartMode = "pnl";
+        source = pnlSeriesAll.map(pt => ({ ts: pt.ts, value: pt.pnl }));
+      }
+    }
+  
+    if (!source.length) {
+      if (card) card.style.display = "none";
+      return;
+    }
+  
     const dayMs = 24 * 60 * 60 * 1000;
-    const firstTs = equitySeriesAll[0].ts;
-    const lastTs  = equitySeriesAll[equitySeriesAll.length - 1].ts;
+    const firstTs = source[0].ts;
+    const lastTs  = source[source.length - 1].ts;
     const totalSpan = lastTs - firstTs;
-
+  
     // Normal range windowing
     let cutoff = null;
     if (range === "1d")       cutoff = lastTs - dayMs;
     else if (range === "7d")  cutoff = lastTs - 7 * dayMs;
     else if (range === "30d") cutoff = lastTs - 30 * dayMs;
     else if (range === "90d") cutoff = lastTs - 90 * dayMs;
-
-    let filtered = equitySeriesAll;
+  
+    let filtered = source;
     if (cutoff !== null) {
-      filtered = equitySeriesAll.filter(p => p.ts >= cutoff);
-
-      // Fallback logic if too few points (except for 7D)
+      filtered = source.filter(p => p.ts >= cutoff);
+  
+      // Fallback if too few points (except 7D)
       let minPoints = 2;
       if (range === "1d") minPoints = 4;
       else if (range === "30d") minPoints = 4;
-
+  
       if (range !== "7d" && filtered.length < minPoints) {
-        const N = Math.min(10, equitySeriesAll.length);
-        filtered = equitySeriesAll.slice(-N);
+        const N = Math.min(10, source.length);
+        filtered = source.slice(-N);
       }
     }
-
-    // If the *total* span is ≤ 1 day, always show time-of-day labels
+  
     const labelRange = totalSpan <= dayMs ? "1d" : range;
-
     const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
-    const values = filtered.map(p => p.equity);
-
+    const values = filtered.map(p => p.value);
+  
     const ctx = document.getElementById("equityChart").getContext("2d");
+  
+    const labelText = activeChartMode === "pnl" ? "Perp PnL" : "Perp balance";
+    const tooltipPrefix = activeChartMode === "pnl"
+      ? "PnL: "
+      : "Perp balance: ";
+  
     if (equityChart) {
       equityChart.data.labels = labels;
       equityChart.data.datasets[0].data = values;
+      equityChart.data.datasets[0].label = labelText;
+  
+      equityChart.options.plugins.tooltip.callbacks.label = function (ctx) {
+        return tooltipPrefix + formatNumber(ctx.parsed.y, 2);
+      };
+  
       equityChart.update();
     } else {
       equityChart = new Chart(ctx, {
@@ -943,7 +989,7 @@
           labels,
           datasets: [
             {
-              label: "Perp balance",
+              label: labelText,
               data: values,
               borderWidth: 2,
               pointRadius: 2,
@@ -962,11 +1008,11 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: function(ctx) {
-                  return "Perp balance: " + formatNumber(ctx.parsed.y, 2);
-                }
-              }
-            }
+                label: function (ctx) {
+                  return tooltipPrefix + formatNumber(ctx.parsed.y, 2);
+                },
+              },
+            },
           },
           scales: {
             x: {
@@ -975,7 +1021,7 @@
             },
             y: {
               ticks: {
-                callback: function(value) { return formatNumber(value, 0); },
+                callback: function (value) { return formatNumber(value, 0); },
               },
               grid: { color: "rgba(31,41,55,0.7)" },
             },
@@ -983,7 +1029,8 @@
         },
       });
     }
-
+  
+    // Highlight active range button
     document.querySelectorAll(".range-btn").forEach(btn => {
       if (btn.dataset.range === range) {
         btn.classList.add("range-btn-active");
@@ -991,6 +1038,9 @@
         btn.classList.remove("range-btn-active");
       }
     });
+  
+    // Keep subtitle in sync
+    updateChartSubtitle();
   }
 
   function renderPnlChart(tsList, values) {
@@ -1270,11 +1320,11 @@
         cashCount.textContent = "(" + perpEventsCount + ")";
       }
 
-      // equity chart
+      // --- Perp balance series ---
       equitySeriesAll = Array.isArray(data.equitySeries)
         ? data.equitySeries
         : [];
-
+      
       if (equitySeriesAll.length) {
         equitySeriesAll = equitySeriesAll
           .map((p) => ({
@@ -1285,19 +1335,13 @@
             (p) => Number.isFinite(p.ts) && Number.isFinite(p.equity),
           )
           .sort((a, b) => a.ts - b.ts);
-
-        // 🔹 Render using the current UI range (all / 90d / 30d / 7d / 1d)
-        renderEquityChart(currentRange);
-      } else {
-        const chartCard = document.getElementById("chart-card");
-        chartCard.style.display = "none";
       }
-
-      // PnL chart
+      
+      // --- Perp PnL series ---
       pnlSeriesAll = Array.isArray(data.pnlSeries)
         ? data.pnlSeries
         : [];
-
+      
       if (pnlSeriesAll.length) {
         pnlSeriesAll = pnlSeriesAll
           .map((p) => ({
@@ -1308,6 +1352,10 @@
             (p) => Number.isFinite(p.ts) && Number.isFinite(p.pnl),
           )
           .sort((a, b) => a.ts - b.ts);
+      }
+      
+      // 🔹 Finally render the unified chart
+      renderEquityChart(currentRange);
 
         const tsList = pnlSeriesAll.map((pt) => pt.ts);
         const values = pnlSeriesAll.map((pt) => pt.pnl);
@@ -1367,6 +1415,28 @@
     document.getElementById("tab-positions").addEventListener("click", () => switchTab("positions"));
     document.getElementById("tab-closed").addEventListener("click", () => switchTab("closed"));
     document.getElementById("tab-cash").addEventListener("click", () => switchTab("cash"));
+
+      // Chart mode toggle: Perp PnL vs Perp balance
+      const chartTabPnl = document.getElementById("chart-tab-pnl");
+      const chartTabBalance = document.getElementById("chart-tab-balance");
+    
+      if (chartTabPnl && chartTabBalance) {
+        chartTabPnl.addEventListener("click", () => {
+          activeChartMode = "pnl";
+          chartTabPnl.classList.add("tab-pill-active");
+          chartTabBalance.classList.remove("tab-pill-active");
+          updateChartSubtitle();
+          renderEquityChart(currentRange);
+        });
+    
+        chartTabBalance.addEventListener("click", () => {
+          activeChartMode = "balance";
+          chartTabBalance.classList.add("tab-pill-active");
+          chartTabPnl.classList.remove("tab-pill-active");
+          updateChartSubtitle();
+          renderEquityChart(currentRange);
+        });
+      }
 
     document.querySelectorAll(".range-btn").forEach(btn => {
       btn.addEventListener("click", () => {
