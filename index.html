@@ -1281,6 +1281,15 @@
         if (pnlCard) pnlCard.style.display = "none";
       }
 
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Error: " + (err?.message || err);
+      statusEl.className = "status status-error";
+    } finally {
+      fetchBtn.disabled = false;
+    }
+  }
+
   function handleSubmit(event) {
     if (event) event.preventDefault();
     // First manual fetch: use whatever currentRange is (default = "all")
