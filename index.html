@@ -621,6 +621,7 @@
   let fundingEventsAll = [];     // full list from Worker
   let fundingPage = 0;           // 0 = newest page
   const FUNDING_PAGE_SIZE = 10;  // 10 per page
+  const DEFAULT_BASE_URL = "https://perp-scan-live.liam-alerts.workers.dev";
 
   function formatNumber(x, decimals = 2) {
     if (x === null || x === undefined || isNaN(Number(x))) return "";
@@ -1196,266 +1197,264 @@
     updateChartSubtitle();
   }
 
-  async function runFetch(skipRedirect, rangeOverride, options = {}) {
-    const updateTables = options.updateTables !== false; // default true
+async function runFetch(skipRedirect, rangeOverride, options = {}) {
+  const updateTables = options.updateTables !== false; // default true
 
-    const baseUrlInput = document.getElementById("baseUrl");
-    const accountInput = document.getElementById("account");
-    const statusEl = document.getElementById("status");
-    const fetchBtn = document.getElementById("fetchBtn");
+  const accountInput = document.getElementById("account");
+  const statusEl = document.getElementById("status");
+  const fetchBtn = document.getElementById("fetchBtn");
 
-    const baseUrlRaw = baseUrlInput.value.trim();
-    const account = accountInput.value.trim();
+  // UI range (graph buttons): all, 90d, 30d, 7d, 1d
+  const uiRange = rangeOverride || currentRange || "all";
+  currentRange = uiRange;
 
-    // UI range (graph buttons): all, 90d, 30d, 7d, 1d
-    const uiRange = rangeOverride || currentRange || "all";
-    currentRange = uiRange;
+  // Backend ?period value: day/week/month/allTime/90d
+  const period = mapRangeToPeriod(uiRange);
 
-    // Backend ?period value: day/week/month/allTime/90d
-    const period = mapRangeToPeriod(uiRange);
+  const account = accountInput.value.trim();
 
-    if (!baseUrlRaw || !account) {
-      statusEl.textContent = "Please enter both base URL and account address.";
-      statusEl.className = "status status-error";
-      return;
-    }
-
-    const currentUrl = new URL(window.location.href);
-    const hasAccountInUrl = !!currentUrl.searchParams.get("account");
-
-    if (!skipRedirect && !hasAccountInUrl) {
-      currentUrl.searchParams.set("account", account);
-      currentUrl.searchParams.set("period", uiRange); // store UI range in URL
-      currentUrl.searchParams.set("base", baseUrlRaw);
-      window.location.href = currentUrl.toString();
-      return;
-    }
-
-    setDetailMode(true);
-    switchTab("positions");
-
-    let baseUrl = baseUrlRaw.replace(/\/+$/, "");
-    const url =
-      baseUrl +
-      "/pnlClean?account=" +
-      encodeURIComponent(account) +
-      "&period=" +
-      encodeURIComponent(period) +
-      (updateTables ? "&positions=1&closed=1" : "&positions=0&closed=0");
-
-    statusEl.textContent = "Fetching from " + url + " …";
-    statusEl.className = "status";
-    fetchBtn.disabled = true;
-
-    try {
-      const res = await fetch(url, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        statusEl.textContent = "Request failed: " + res.status + " " + res.statusText;
-        statusEl.className = "status status-error";
-        console.error("Error response body:", text);
-        return;
-      }
-
-      const data = await res.json().catch(() => null);
-      if (!data) {
-        statusEl.textContent = "Received a non-JSON response from the Worker.";
-        statusEl.className = "status status-error";
-        return;
-      }
-
-      statusEl.textContent = "OK · Response received.";
-      statusEl.className = "status status-ok";
-
-      // raw JSON block
-      const rawBlock = document.getElementById("rawJsonBlock");
-      const rawPre = document.getElementById("rawJson");
-      rawPre.textContent = JSON.stringify(data, null, 2);
-      rawBlock.style.display = "block";
-
-      // account label top-right
-      const accountLabel = document.getElementById("accountLabel");
-      const accDisplay = (data.account || account || "").toString();
-      accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
-
-      // summary badges
-      const summaryBadges = document.getElementById("summaryBadges");
-      const summaryMeta = document.getElementById("summaryMeta");
-      summaryBadges.innerHTML = "";
-      summaryMeta.innerHTML = "";
-
-      const tradingPnl   = typeof data.perp_pnl === "number" ? data.perp_pnl : null;
-      const portfolioPnl = typeof data.balance_change === "number" ? data.balance_change : null;
-
-      const roiObj = data.roi || {};
-      const tradingPct   = typeof roiObj.trading_pct === "number" ? roiObj.trading_pct : null;
-      const portfolioPct = typeof roiObj.portfolio_pct === "number" ? roiObj.portfolio_pct : null;
-
-      const pnlBadges = [];
-
-      if (portfolioPnl !== null) {
-        const color = portfolioPnl >= 0 ? "green" : "red";
-        pnlBadges.push(
-          createBadge("Portfolio PnL", "$" + formatNumber(portfolioPnl, 2), { color })
-        );
-      }
-      if (tradingPnl !== null) {
-        const color = tradingPnl >= 0 ? "green" : "red";
-        pnlBadges.push(
-          createBadge("Perp PnL", "$" + formatNumber(tradingPnl, 2), { color })
-        );
-      }
-      if (portfolioPct !== null) {
-        const color = portfolioPct >= 0 ? "green" : "red";
-        pnlBadges.push(
-          createBadge("Portfolio ROI", formatNumber(portfolioPct, 2) + "%", { color })
-        );
-      }
-      if (tradingPct !== null) {
-        const color = tradingPct >= 0 ? "green" : "red";
-        pnlBadges.push(
-          createBadge("Perp ROI", formatNumber(tradingPct, 2) + "%", { color })
-        );
-      }
-
-      if (!pnlBadges.length) {
-        summaryBadges.innerHTML =
-          '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
-      } else {
-        pnlBadges.forEach(b => summaryBadges.appendChild(b));
-      }
-
-      const anySummary =
-        data.summary || data.portfolioSummary || data.portfolio || data.meta || null;
-
-      const deposits =
-        anySummary?.deposits ??
-        anySummary?.deposited ??
-        data.adjustments?.deposits ??
-        null;
-
-      const withdrawals =
-        anySummary?.withdrawals ??
-        anySummary?.withdrawn ??
-        data.adjustments?.withdrawals ??
-        null;
-
-      const fees = anySummary?.fees ?? null;
-
-      const metaBadges = [];
-      if (deposits !== null) {
-        metaBadges.push(createBadge("Deposits", "$" + formatNumber(deposits, 2)));
-      }
-      if (withdrawals !== null) {
-        metaBadges.push(createBadge("Withdrawals", "$" + formatNumber(withdrawals, 2)));
-      }
-      if (fees !== null) {
-        metaBadges.push(createBadge("Fees", "$" + formatNumber(fees, 2)));
-      }
-
-      const balances = data.balances || {};
-      if (balances.perp_now != null) {
-        metaBadges.push(
-          createBadge("Perp balance now", "$" + formatNumber(balances.perp_now, 2))
-        );
-      }
-      if (balances.portfolio_now != null) {
-        metaBadges.push(
-          createBadge("Portfolio balance now", "$" + formatNumber(balances.portfolio_now, 2))
-        );
-      }
-
-      if (!metaBadges.length) {
-        summaryMeta.innerHTML =
-          '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
-      } else {
-        metaBadges.forEach(b => summaryMeta.appendChild(b));
-      }
-
-      if (updateTables) {
-        const positions = data.positions || data.openPositions || data.open || [];
-        const closed = data.closed || data.closedTrades || data.trades || [];
-
-        const fundingEvents = data.fundingEvents || [];
-        const fundingSummary = data.fundingSummary || {};
-
-        const positionsContainer = document.getElementById("positionsTableContainer");
-        const closedContainer = document.getElementById("closedTableContainer");
-        const cashContainer = document.getElementById("cashTableContainer");
-
-        buildTable(positionsContainer, positions, { type: "positions" });
-        buildTable(closedContainer, closed, { type: "closed" });
-
-        fundingEventsAll = (data.fundingEvents || []).filter(ev => ev.kind === "perpTransfer")
-          .sort((a, b) => b.time - a.time);   // newest first
-        
-        fundingPage = 0;
-        renderFundingTable(cashContainer);
-
-        const posCount = document.getElementById("positionsCount");
-        const closedCount = document.getElementById("closedCount");
-        const cashCount = document.getElementById("cashCount");
-
-        posCount.textContent =
-          "(" + (Array.isArray(positions) ? positions.length : 0) + ")";
-        closedCount.textContent =
-          "(" + (Array.isArray(closed) ? closed.length : 0) + ")";
-
-        const perpEventsCount = fundingEvents.filter(
-          (ev) => ev.kind === "perpTransfer",
-        ).length;
-        cashCount.textContent = "(" + perpEventsCount + ")";
-      }
-
-      // --- Perp balance series ---
-      equitySeriesAll = Array.isArray(data.equitySeries)
-        ? data.equitySeries
-        : [];
-
-      if (equitySeriesAll.length) {
-        equitySeriesAll = equitySeriesAll
-          .map((p) => ({
-            ts: Number(p.ts ?? p[0]),
-            equity: Number(p.equity ?? p[1]),
-          }))
-          .filter(
-            (p) => Number.isFinite(p.ts) && Number.isFinite(p.equity),
-          )
-          .sort((a, b) => a.ts - b.ts);
-      }
-
-      // --- Perp PnL series ---
-      pnlSeriesAll = Array.isArray(data.pnlSeries)
-        ? data.pnlSeries
-        : [];
-
-      if (pnlSeriesAll.length) {
-        pnlSeriesAll = pnlSeriesAll
-          .map((p) => ({
-            ts: Number(p.ts ?? p[0]),
-            pnl: Number(p.pnl ?? p[1]),
-          }))
-          .filter(
-            (p) => Number.isFinite(p.ts) && Number.isFinite(p.pnl),
-          )
-          .sort((a, b) => a.ts - b.ts);
-      }
-
-      // 🔹 Finally render the unified chart (Perp PnL or Perp balance depending on activeChartMode)
-      renderEquityChart(currentRange);
-
-    } catch (err) {
-      console.error(err);
-      statusEl.textContent = "Error: " + (err?.message || err);
-      statusEl.className = "status status-error";
-    } finally {
-      fetchBtn.disabled = false;
-    }
+  if (!account) {
+    statusEl.textContent = "Please enter an account address.";
+    statusEl.className = "status status-error";
+    return;
   }
+
+  // URL param handling (account + period) — we no longer store base URL
+  const currentUrl = new URL(window.location.href);
+  const hasAccountInUrl = !!currentUrl.searchParams.get("account");
+
+  if (!skipRedirect && !hasAccountInUrl) {
+    currentUrl.searchParams.set("account", account);
+    currentUrl.searchParams.set("period", uiRange); // store UI range in URL
+    window.location.href = currentUrl.toString();
+    return;
+  }
+
+  setDetailMode(true);
+  switchTab("positions");
+
+  // 🔹 Use hardcoded Worker URL instead of DOM input
+  let baseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "");
+  const url =
+    baseUrl +
+    "/pnlClean?account=" +
+    encodeURIComponent(account) +
+    "&period=" +
+    encodeURIComponent(period) +
+    (updateTables ? "&positions=1&closed=1" : "&positions=0&closed=0");
+
+  statusEl.textContent = "Fetching from " + url + " …";
+  statusEl.className = "status";
+  fetchBtn.disabled = true;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      statusEl.textContent = "Request failed: " + res.status + " " + res.statusText;
+      statusEl.className = "status status-error";
+      console.error("Error response body:", text);
+      return;
+    }
+
+    const data = await res.json().catch(() => null);
+    if (!data) {
+      statusEl.textContent = "Received a non-JSON response from the Worker.";
+      statusEl.className = "status status-error";
+      return;
+    }
+
+    statusEl.textContent = "OK · Response received.";
+    statusEl.className = "status status-ok";
+
+    // raw JSON block
+    const rawBlock = document.getElementById("rawJsonBlock");
+    const rawPre = document.getElementById("rawJson");
+    rawPre.textContent = JSON.stringify(data, null, 2);
+    rawBlock.style.display = "block";
+
+    // account label top-right
+    const accountLabel = document.getElementById("accountLabel");
+    const accDisplay = (data.account || account || "").toString();
+    accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
+
+    // summary badges
+    const summaryBadges = document.getElementById("summaryBadges");
+    const summaryMeta = document.getElementById("summaryMeta");
+    summaryBadges.innerHTML = "";
+    summaryMeta.innerHTML = "";
+
+    const tradingPnl   = typeof data.perp_pnl === "number" ? data.perp_pnl : null;
+    const portfolioPnl = typeof data.balance_change === "number" ? data.balance_change : null;
+
+    const roiObj = data.roi || {};
+    const tradingPct   = typeof roiObj.trading_pct === "number" ? roiObj.trading_pct : null;
+    const portfolioPct = typeof roiObj.portfolio_pct === "number" ? roiObj.portfolio_pct : null;
+
+    const pnlBadges = [];
+
+    if (portfolioPnl !== null) {
+      const color = portfolioPnl >= 0 ? "green" : "red";
+      pnlBadges.push(
+        createBadge("Portfolio PnL", "$" + formatNumber(portfolioPnl, 2), { color })
+      );
+    }
+    if (tradingPnl !== null) {
+      const color = tradingPnl >= 0 ? "green" : "red";
+      pnlBadges.push(
+        createBadge("Perp PnL", "$" + formatNumber(tradingPnl, 2), { color })
+      );
+    }
+    if (portfolioPct !== null) {
+      const color = portfolioPct >= 0 ? "green" : "red";
+      pnlBadges.push(
+        createBadge("Portfolio ROI", formatNumber(portfolioPct, 2) + "%", { color })
+      );
+    }
+    if (tradingPct !== null) {
+      const color = tradingPct >= 0 ? "green" : "red";
+      pnlBadges.push(
+        createBadge("Perp ROI", formatNumber(tradingPct, 2) + "%", { color })
+      );
+    }
+
+    if (!pnlBadges.length) {
+      summaryBadges.innerHTML =
+        '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
+    } else {
+      pnlBadges.forEach(b => summaryBadges.appendChild(b));
+    }
+
+    const anySummary =
+      data.summary || data.portfolioSummary || data.portfolio || data.meta || null;
+
+    const deposits =
+      anySummary?.deposits ??
+      anySummary?.deposited ??
+      data.adjustments?.deposits ??
+      null;
+
+    const withdrawals =
+      anySummary?.withdrawals ??
+      anySummary?.withdrawn ??
+      data.adjustments?.withdrawals ??
+      null;
+
+    const fees = anySummary?.fees ?? null;
+
+    const metaBadges = [];
+    if (deposits !== null) {
+      metaBadges.push(createBadge("Deposits", "$" + formatNumber(deposits, 2)));
+    }
+    if (withdrawals !== null) {
+      metaBadges.push(createBadge("Withdrawals", "$" + formatNumber(withdrawals, 2)));
+    }
+    if (fees !== null) {
+      metaBadges.push(createBadge("Fees", "$" + formatNumber(fees, 2)));
+    }
+
+    const balances = data.balances || {};
+    if (balances.perp_now != null) {
+      metaBadges.push(
+        createBadge("Perp balance now", "$" + formatNumber(balances.perp_now, 2))
+      );
+    }
+    if (balances.portfolio_now != null) {
+      metaBadges.push(
+        createBadge("Portfolio balance now", "$" + formatNumber(balances.portfolio_now, 2))
+      );
+    }
+
+    if (!metaBadges.length) {
+      summaryMeta.innerHTML =
+        '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
+    } else {
+      metaBadges.forEach(b => summaryMeta.appendChild(b));
+    }
+
+    if (updateTables) {
+      const positions = data.positions || data.openPositions || data.open || [];
+      const closed = data.closed || data.closedTrades || data.trades || [];
+
+      const fundingEvents = data.fundingEvents || [];
+
+      const positionsContainer = document.getElementById("positionsTableContainer");
+      const closedContainer = document.getElementById("closedTableContainer");
+      const cashContainer = document.getElementById("cashTableContainer");
+
+      buildTable(positionsContainer, positions, { type: "positions" });
+      buildTable(closedContainer, closed, { type: "closed" });
+
+      fundingEventsAll = (data.fundingEvents || []).filter(ev => ev.kind === "perpTransfer")
+        .sort((a, b) => b.time - a.time);   // newest first
+      
+      fundingPage = 0;
+      renderFundingTable(cashContainer);
+
+      const posCount = document.getElementById("positionsCount");
+      const closedCount = document.getElementById("closedCount");
+      const cashCount = document.getElementById("cashCount");
+
+      posCount.textContent =
+        "(" + (Array.isArray(positions) ? positions.length : 0) + ")";
+      closedCount.textContent =
+        "(" + (Array.isArray(closed) ? closed.length : 0) + ")";
+
+      const perpEventsCount = fundingEvents.filter(
+        (ev) => ev.kind === "perpTransfer",
+      ).length;
+      cashCount.textContent = "(" + perpEventsCount + ")";
+    }
+
+    // --- Perp balance series ---
+    equitySeriesAll = Array.isArray(data.equitySeries)
+      ? data.equitySeries
+      : [];
+
+    if (equitySeriesAll.length) {
+      equitySeriesAll = equitySeriesAll
+        .map((p) => ({
+          ts: Number(p.ts ?? p[0]),
+          equity: Number(p.equity ?? p[1]),
+        }))
+        .filter(
+          (p) => Number.isFinite(p.ts) && Number.isFinite(p.equity),
+        )
+        .sort((a, b) => a.ts - b.ts);
+    }
+
+    // --- Perp PnL series ---
+    pnlSeriesAll = Array.isArray(data.pnlSeries)
+      ? data.pnlSeries
+      : [];
+
+    if (pnlSeriesAll.length) {
+      pnlSeriesAll = pnlSeriesAll
+        .map((p) => ({
+          ts: Number(p.ts ?? p[0]),
+          pnl: Number(p.pnl ?? p[1]),
+        }))
+        .filter(
+          (p) => Number.isFinite(p.ts) && Number.isFinite(p.pnl),
+        )
+        .sort((a, b) => a.ts - b.ts);
+    }
+
+    // 🔹 Finally render the unified chart (Perp PnL or Perp balance depending on activeChartMode)
+    renderEquityChart(currentRange);
+
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Error: " + (err?.message || err);
+    statusEl.className = "status status-error";
+  } finally {
+    fetchBtn.disabled = false;
+  }
+}
 
   function handleSubmit(event) {
     if (event) event.preventDefault();
@@ -1466,10 +1465,10 @@
 document.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   const accountParam = params.get("account");
-  const periodParam = params.get("period"); // this is our stored UI range now
+  const periodParam = params.get("period");
 
   const accountInput = document.getElementById("account");
-  const periodSelect = document.getElementById("period"); // still present in DOM, but no longer used for API
+  const periodSelect = document.getElementById("period"); // if present
 
   if (accountParam) accountInput.value = accountParam;
 
@@ -1477,30 +1476,27 @@ document.addEventListener("DOMContentLoaded", () => {
     currentRange = periodParam;
   }
 
-  // Keep the dropdown showing something sane (not used for backend anymore)
+  // Keep the dropdown showing something sane (even if unused)
   if (periodSelect) {
     periodSelect.value = "allTime";
   }
 
-  // 🔹 Home search bar: copy value into topbar and run the same fetch
+  // 🔹 Home search bar → trigger topbar search
   const homeSearchBtn = document.getElementById("homeSearchBtn");
   if (homeSearchBtn) {
     homeSearchBtn.addEventListener("click", () => {
       const val = document.getElementById("homeAccount").value.trim();
       if (!val) return;
 
-      // Put value into the topbar search box
       document.getElementById("account").value = val;
-
-      // Trigger the same fetch logic
-      handleSubmit();
+      handleSubmit(); // run the PnL fetch
     });
   }
 
-  // Existing listeners
-
+  // 🔹 Topbar search form
   document.getElementById("query-form").addEventListener("submit", handleSubmit);
 
+  // Load detail page automatically if URL contains ?account=
   if (accountParam) {
     setDetailMode(true);
     switchTab("positions");
@@ -1509,11 +1505,12 @@ document.addEventListener("DOMContentLoaded", () => {
     setDetailMode(false);
   }
 
+  // Tab switching
   document.getElementById("tab-positions").addEventListener("click", () => switchTab("positions"));
   document.getElementById("tab-closed").addEventListener("click", () => switchTab("closed"));
   document.getElementById("tab-cash").addEventListener("click", () => switchTab("cash"));
 
-  // Chart mode toggle: Perp PnL vs Perp balance
+  // Chart mode toggle
   const chartTabPnl = document.getElementById("chart-tab-pnl");
   const chartTabBalance = document.getElementById("chart-tab-balance");
 
@@ -1535,11 +1532,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Range buttons (1D / 7D / 30D / etc)
   document.querySelectorAll(".range-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const range = btn.dataset.range;
       currentRange = range;
-      // Re-fetch PnL/ROI/equity for this window, but keep tables as-is
       runFetch(true, range, { updateTables: false });
     });
   });
