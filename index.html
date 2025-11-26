@@ -42,28 +42,24 @@
       height: 64px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;           /* spacing between logo + text */
+      padding-left: 24px;  /* LEFT alignment */
       backdrop-filter: blur(10px);
       background: rgba(0, 0, 0, 0.25);
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       z-index: 9999;
-      padding-left: 24px;
     }
-    /* New logo */
     .topbar-logo {
       height: 40px;
       width: 40px;
       object-fit: contain;
       cursor: pointer;
-      user-select: none;
     }
-    /* “Perp Scan” text */
     .topbar-title {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: 650;
-      letter-spacing: 0.02em;
-      cursor: pointer;
       color: #e5e5e5;
+      cursor: pointer;
     }
     .topbar-title:hover {
       color: #ffffff;
@@ -433,19 +429,10 @@
 </head>
 <body>
 <header class="topbar">
-  <img src="./assets/PSLOGO.png" class="topbar-logo" alt="logo" onclick="window.location.href='/'">
+  <img src="./assets/PSLOGO.png" class="topbar-logo" onclick="window.location.href='/'">
   <span class="topbar-title" onclick="window.location.href='/'">Perp Scan</span>
 </header>
   <div class="app">
-    <header>
-      <a class="logo" href="index.html" style="text-decoration:none; color:inherit;">
-        <div class="logo-icon"></div>
-        <div>
-          <div class="logo-main">Perp Scan</div>
-          <div class="logo-sub">On-chain PnL & positions from your browser</div>
-        </div>
-      </a>
-    </header>
 
     <main>
       <section class="card">
