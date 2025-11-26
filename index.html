@@ -28,10 +28,29 @@
       display: flex;
       justify-content: center;
       padding: 24px;
+      padding-top: 80px;
     }
     .app {
       width: 100%;
       max-width: 1400px;
+    }
+    .topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      background: rgba(0, 0, 0, 0.25);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      z-index: 9999;
+      padding-left: 24px;
+    }
+    .topbar img {
+      height: 40px;
+      cursor: pointer;
     }
     header {
       display: flex;
@@ -431,6 +450,9 @@
   </style>
 </head>
 <body>
+  <header class="topbar">
+  <img src="YOUR_LOGO.png" onclick="window.location.href='/'" />
+  </header>
   <div class="app">
     <header>
       <a class="logo" href="index.html" style="text-decoration:none; color:inherit;">
