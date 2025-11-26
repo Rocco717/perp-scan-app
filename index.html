@@ -74,30 +74,39 @@
     .topbar-title:hover {
       color: #ffffff;
     }
-      .home-search {
-      display: flex;
-      gap: 10px;
+    /* ---------- HOME SEARCH BAR (landing page) ---------- */
+    .home-search {
       margin-top: 16px;
-      max-width: 420px;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-start;    /* left aligned */
+      align-items: center;
     }
     .home-search input {
-      flex: 1;
+      width: 440px;                   /* 👈 fits a full HL address */
+      max-width: 100%;
+      padding: 10px 14px;
       border-radius: 999px;
       border: 1px solid var(--border);
       background: #050505;
       color: var(--text);
-      padding: 10px 14px;
       font-size: 0.9rem;
     }
     .home-search button {
+      padding: 10px 18px;
       border-radius: 999px;
-      border: 1px solid var(--border);
       background: #111111;
-      padding: 10px 16px;
-      font-size: 0.88rem;
-      color: #fff;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 550;
       cursor: pointer;
     }
+    .home-search button:hover {
+      background: #1a1a1a;
+      color: #ffffff;
+    }
+
     .app header {
       display: flex;
       justify-content: space-between;
