@@ -476,7 +476,7 @@
         <div id="status" class="status"></div>
       </section>
 
-      <!-- NEW TOP ROW: snapshot (left) + chart (right) -->
+           <!-- NEW TOP ROW: snapshot (left) + chart (right) -->
       <div class="top-row">
       
         <!-- LEFT: Portfolio snapshot -->
@@ -501,16 +501,23 @@
             </div>
           </div>
         </section>
-      
-        <!-- RIGHT: Chart -->
+
+        <!-- RIGHT: Perp PnL / balance chart -->
         <section class="card" id="chart-card" style="display:none;">
           <div class="card-header">
             <div>
+              <!-- Chart mode toggle -->
               <div class="tabs-row" id="chart-mode-tabs">
-                <button type="button" class="tab-pill tab-pill-active" id="chart-tab-pnl" data-chart="pnl">
+                <button type="button"
+                        class="tab-pill tab-pill-active"
+                        id="chart-tab-pnl"
+                        data-chart="pnl">
                   <span>Perp PnL</span>
                 </button>
-                <button type="button" class="tab-pill" id="chart-tab-balance" data-chart="balance">
+                <button type="button"
+                        class="tab-pill"
+                        id="chart-tab-balance"
+                        data-chart="balance">
                   <span>Perp balance</span>
                 </button>
               </div>
@@ -519,6 +526,7 @@
               </div>
             </div>
       
+            <!-- Range buttons -->
             <div class="range-row">
               <button type="button" class="range-btn range-btn-active" data-range="all">All</button>
               <button type="button" class="range-btn" data-range="90d">90D</button>
@@ -531,10 +539,9 @@
           <div id="equityChartContainer">
             <canvas id="equityChart"></canvas>
           </div>
-      
         </section>
-      
-      </div>
+
+      </div> <!-- end .top-row -->
 
       <section class="card" id="tables-card" style="display:none;">
         <div class="card-header">
