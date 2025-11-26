@@ -390,6 +390,26 @@
       background: #22c55e;
       color: #022c22;
     }
+
+    /* Top row: Portfolio snapshot (left) + Perp chart (right) */
+    .top-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* 50/50 split */
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    /* Make sure cards stretch nicely inside the row */
+    .top-row .card {
+      height: 100%;
+    }
+    
+    /* On smaller screens, stack vertically */
+    @media (max-width: 900px) {
+      .top-row {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
   
     @media (max-width: 840px) {
       body { padding: 12px; }
@@ -456,65 +476,65 @@
         <div id="status" class="status"></div>
       </section>
 
-      <section class="card" id="chart-card" style="display:none;">
-        <div class="card-header">
-          <div>
-            <!-- Chart mode toggle -->
-            <div class="tabs-row" id="chart-mode-tabs">
-              <button type="button"
-                      class="tab-pill tab-pill-active"
-                      id="chart-tab-pnl"
-                      data-chart="pnl">
-                <span>Perp PnL</span>
-              </button>
-              <button type="button"
-                      class="tab-pill"
-                      id="chart-tab-balance"
-                      data-chart="balance">
-                <span>Perp balance</span>
-              </button>
+      <!-- NEW TOP ROW: snapshot (left) + chart (right) -->
+      <div class="top-row">
+      
+        <!-- LEFT: Portfolio snapshot -->
+        <section class="card" id="summary-card" style="display:none;">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Portfolio snapshot</div>
+              <div class="card-sub">PnL, ROI and cashflow if your Worker returns a summary block.</div>
             </div>
-            <div class="card-sub" id="chart-subtitle">
-              Realized + funding PnL for this window.
+          </div>
+          <div class="grid-2">
+            <div>
+              <div class="mini-label">
+                <span>Summary</span>
+                <span id="accountLabel" style="font-size:0.75rem;"></span>
+              </div>
+              <div id="summaryBadges" class="summary-badges"></div>
+            </div>
+            <div>
+              <div class="mini-label"><span>Cashflows / meta</span></div>
+              <div id="summaryMeta" class="summary-badges"></div>
+            </div>
+          </div>
+        </section>
+      
+        <!-- RIGHT: Chart -->
+        <section class="card" id="chart-card" style="display:none;">
+          <div class="card-header">
+            <div>
+              <div class="tabs-row" id="chart-mode-tabs">
+                <button type="button" class="tab-pill tab-pill-active" id="chart-tab-pnl" data-chart="pnl">
+                  <span>Perp PnL</span>
+                </button>
+                <button type="button" class="tab-pill" id="chart-tab-balance" data-chart="balance">
+                  <span>Perp balance</span>
+                </button>
+              </div>
+              <div class="card-sub" id="chart-subtitle">
+                Realized + funding PnL for this window.
+              </div>
+            </div>
+      
+            <div class="range-row">
+              <button type="button" class="range-btn range-btn-active" data-range="all">All</button>
+              <button type="button" class="range-btn" data-range="90d">90D</button>
+              <button type="button" class="range-btn" data-range="30d">30D</button>
+              <button type="button" class="range-btn" data-range="7d">7D</button>
+              <button type="button" class="range-btn" data-range="1d">1D</button>
             </div>
           </div>
       
-          <!-- Same range buttons as before -->
-          <div class="range-row">
-            <button type="button" class="range-btn range-btn-active" data-range="all">All</button>
-            <button type="button" class="range-btn" data-range="90d">90D</button>
-            <button type="button" class="range-btn" data-range="30d">30D</button>
-            <button type="button" class="range-btn" data-range="7d">7D</button>
-            <button type="button" class="range-btn" data-range="1d">1D</button>
+          <div id="equityChartContainer">
+            <canvas id="equityChart"></canvas>
           </div>
-        </div>
       
-        <div id="equityChartContainer">
-          <canvas id="equityChart"></canvas>
-        </div>
-      </section>
-
-      <section class="card" id="summary-card" style="display:none;">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Portfolio snapshot</div>
-            <div class="card-sub">PnL, ROI and cashflow if your Worker returns a summary block.</div>
-          </div>
-        </div>
-        <div class="grid-2">
-          <div>
-            <div class="mini-label">
-              <span>Summary</span>
-              <span id="accountLabel" style="font-size:0.75rem;"></span>
-            </div>
-            <div id="summaryBadges" class="summary-badges"></div>
-          </div>
-          <div>
-            <div class="mini-label"><span>Cashflows / meta</span></div>
-            <div id="summaryMeta" class="summary-badges"></div>
-          </div>
-        </div>
-      </section>
+        </section>
+      
+      </div>
 
       <section class="card" id="tables-card" style="display:none;">
         <div class="card-header">
