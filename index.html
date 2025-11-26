@@ -1484,88 +1484,90 @@
     runFetch(false, currentRange, { updateTables: true });
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    const params = new URLSearchParams(window.location.search);
-    const baseParam = params.get("base");
-    const accountParam = params.get("account");
-    const periodParam = params.get("period"); // this is our stored UI range now
-  
-    const baseInput = document.getElementById("baseUrl");
-    const accountInput = document.getElementById("account");
-    const periodSelect = document.getElementById("period");
-  
-    if (baseParam) baseInput.value = baseParam;
-    if (accountParam) accountInput.value = accountParam;
-  
-    if (periodParam && ["all","90d","30d","7d","1d"].includes(periodParam)) {
-      currentRange = periodParam;
-    }
-  
-    const homeSearchBtn = document.getElementById("homeSearchBtn");
-    if (homeSearchBtn) {
-      homeSearchBtn.addEventListener("click", () => {
-        const val = document.getElementById("homeAccount").value.trim();
-        if (!val) return;
-  
-        // Put value into the topbar search box
-        document.getElementById("account").value = val;
-  
-        // Trigger the same fetch logic
-        handleSubmit();
-      });
-    }
-  });
+document.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  const baseParam = params.get("base");
+  const accountParam = params.get("account");
+  const periodParam = params.get("period"); // this is our stored UI range now
 
-    // Keep the dropdown showing something sane (not used for backend anymore)
-    if (periodSelect) {
-      periodSelect.value = "allTime";
-    }
+  const baseInput = document.getElementById("baseUrl");
+  const accountInput = document.getElementById("account");
+  const periodSelect = document.getElementById("period"); // still present in DOM, but no longer used for API
 
-    document.getElementById("query-form").addEventListener("submit", handleSubmit);
+  if (baseParam) baseInput.value = baseParam;
+  if (accountParam) accountInput.value = accountParam;
 
-    if (accountParam) {
-      setDetailMode(true);
-      switchTab("positions");
-      runFetch(true, currentRange, { updateTables: true });
-    } else {
-      setDetailMode(false);
-    }
+  if (periodParam && ["all","90d","30d","7d","1d"].includes(periodParam)) {
+    currentRange = periodParam;
+  }
 
-    document.getElementById("tab-positions").addEventListener("click", () => switchTab("positions"));
-    document.getElementById("tab-closed").addEventListener("click", () => switchTab("closed"));
-    document.getElementById("tab-cash").addEventListener("click", () => switchTab("cash"));
+  // Keep the dropdown showing something sane (not used for backend anymore)
+  if (periodSelect) {
+    periodSelect.value = "allTime";
+  }
 
-      // Chart mode toggle: Perp PnL vs Perp balance
-      const chartTabPnl = document.getElementById("chart-tab-pnl");
-      const chartTabBalance = document.getElementById("chart-tab-balance");
-    
-      if (chartTabPnl && chartTabBalance) {
-        chartTabPnl.addEventListener("click", () => {
-          activeChartMode = "pnl";
-          chartTabPnl.classList.add("tab-pill-active");
-          chartTabBalance.classList.remove("tab-pill-active");
-          updateChartSubtitle();
-          renderEquityChart(currentRange);
-        });
-    
-        chartTabBalance.addEventListener("click", () => {
-          activeChartMode = "balance";
-          chartTabBalance.classList.add("tab-pill-active");
-          chartTabPnl.classList.remove("tab-pill-active");
-          updateChartSubtitle();
-          renderEquityChart(currentRange);
-        });
-      }
+  // 🔹 Home search bar: copy value into topbar and run the same fetch
+  const homeSearchBtn = document.getElementById("homeSearchBtn");
+  if (homeSearchBtn) {
+    homeSearchBtn.addEventListener("click", () => {
+      const val = document.getElementById("homeAccount").value.trim();
+      if (!val) return;
 
-    document.querySelectorAll(".range-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const range = btn.dataset.range;
-        currentRange = range;
-        // Re-fetch PnL/ROI/equity for this window, but keep tables as-is
-        runFetch(true, range, { updateTables: false });
-      });
+      // Put value into the topbar search box
+      document.getElementById("account").value = val;
+
+      // Trigger the same fetch logic
+      handleSubmit();
+    });
+  }
+
+  // Existing listeners
+
+  document.getElementById("query-form").addEventListener("submit", handleSubmit);
+
+  if (accountParam) {
+    setDetailMode(true);
+    switchTab("positions");
+    runFetch(true, currentRange, { updateTables: true });
+  } else {
+    setDetailMode(false);
+  }
+
+  document.getElementById("tab-positions").addEventListener("click", () => switchTab("positions"));
+  document.getElementById("tab-closed").addEventListener("click", () => switchTab("closed"));
+  document.getElementById("tab-cash").addEventListener("click", () => switchTab("cash"));
+
+  // Chart mode toggle: Perp PnL vs Perp balance
+  const chartTabPnl = document.getElementById("chart-tab-pnl");
+  const chartTabBalance = document.getElementById("chart-tab-balance");
+
+  if (chartTabPnl && chartTabBalance) {
+    chartTabPnl.addEventListener("click", () => {
+      activeChartMode = "pnl";
+      chartTabPnl.classList.add("tab-pill-active");
+      chartTabBalance.classList.remove("tab-pill-active");
+      updateChartSubtitle();
+      renderEquityChart(currentRange);
+    });
+
+    chartTabBalance.addEventListener("click", () => {
+      activeChartMode = "balance";
+      chartTabBalance.classList.add("tab-pill-active");
+      chartTabPnl.classList.remove("tab-pill-active");
+      updateChartSubtitle();
+      renderEquityChart(currentRange);
+    });
+  }
+
+  document.querySelectorAll(".range-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const range = btn.dataset.range;
+      currentRange = range;
+      // Re-fetch PnL/ROI/equity for this window, but keep tables as-is
+      runFetch(true, range, { updateTables: false });
     });
   });
+});
 </script>
 </body>
 </html>
