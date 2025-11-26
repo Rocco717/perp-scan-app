@@ -356,8 +356,8 @@
       cursor: pointer;
     }
     .range-btn-active {
-      background: rgba(34,197,94,0.25);
-      color: #bbf7d0;
+      background: #ffffff10;     /* subtle white tint */
+      color: #ffffff;            /* white text */
     }
   
     /* ---------- CHART CONTAINERS ---------- */
@@ -932,6 +932,15 @@
     }
   }
 
+    // Determine color based on last vs first
+  const firstValue = filtered[0].equity;
+  const lastValue  = filtered[filtered.length - 1].equity;
+  
+  const isUp = lastValue >= firstValue;
+  
+  const lineColor   = isUp ? "rgba(34,197,94,1)" : "rgba(239,68,68,1)";   // green / red
+  const fillColor   = isUp ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)";
+
   function renderEquityChart(range) {
     const card = document.getElementById("chart-card");
     const hasEquity = Array.isArray(equitySeriesAll) && equitySeriesAll.length > 0;
@@ -1029,8 +1038,8 @@
               pointRadius: 2,
               pointHitRadius: 6,
               tension: 0.25,
-              borderColor: "rgba(56,189,248,0.95)",
-              backgroundColor: "rgba(56,189,248,0.25)",
+              borderColor: lineColor,
+              backgroundColor: fillColor,
               fill: false,
             },
           ],
@@ -1052,12 +1061,14 @@
             x: {
               ticks: { maxTicksLimit: 6 },
               grid: { display: false },
+              border: { display: false },  // removes bottom border
             },
             y: {
               ticks: {
-                callback: function (value) { return formatNumber(value, 0); },
+                callback: (value) => formatNumber(value, 0),
               },
-              grid: { color: "rgba(31,41,55,0.7)" },
+              grid: { display: false },   // ❌ removes horizontal lines
+              border: { display: false }, // removes axis border line
             },
           },
         },
@@ -1079,6 +1090,13 @@
 
   function renderPnlChart(tsList, values) {
   if (!Array.isArray(tsList) || !Array.isArray(values) || tsList.length === 0) {
+    // Decide red/green color
+    const firstP = values[0];
+    const lastP  = values[values.length - 1];
+    const isUpPnL = lastP >= firstP;
+    
+    const pnlLineColor = isUpPnL ? "rgba(34,197,94,1)" : "rgba(239,68,68,1)";
+    const pnlFillColor = isUpPnL ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)";
     const pnlCard = document.getElementById("pnl-chart-card");
     if (pnlCard) pnlCard.style.display = "none";
     return;
@@ -1111,8 +1129,8 @@
           pointRadius: 2,
           pointHitRadius: 6,
           tension: 0.25,
-          borderColor: "rgba(34,197,94,0.95)",     // greenish
-          backgroundColor: "rgba(34,197,94,0.20)", // transparent green
+          borderColor: pnlLineColor,
+          backgroundColor: pnlFillColor,
           fill: true,
         },
       ],
