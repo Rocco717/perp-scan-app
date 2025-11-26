@@ -54,7 +54,6 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-left: 24px;       /* space between title and search */
     }
     .topbar-form input {
       width: 260px;            /* tighter width for header */
@@ -70,6 +69,7 @@
       font-weight: 650;
       color: #e5e5e5;
       cursor: pointer;
+      margin-right: auto; 
     }
     .topbar-title:hover {
       color: #ffffff;
@@ -442,10 +442,10 @@
   <img src="./assets/PSLOGO.png" class="topbar-logo" onclick="window.location.href='/'">
   <span class="topbar-title" onclick="window.location.href='/'">Perp Scan</span>
 
-  <!-- 🔹 Moved search/fetch bar into topbar -->
+  <!-- 🔹 Right-aligned search bar -->
   <form id="query-form" class="topbar-form">
     <input id="account" name="account" type="text" placeholder="0x… / address" required />
-    <button id="fetchBtn" type="submit">Fetch</button>
+    <button id="fetchBtn" type="submit">Search</button>
   </form>
 </header>
 <div class="app">
