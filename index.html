@@ -1069,6 +1069,47 @@
   
       equityChart.update();
     } else {
+      // Animation: draw line from left to right
+      const totalDuration = 1500; // ms for full draw
+      const delayBetweenPoints = values.length
+        ? totalDuration / values.length
+        : 0;
+
+      const animation = {
+        x: {
+          type: "number",
+          easing: "linear",
+          duration: delayBetweenPoints,
+          from: NaN,
+          delay(ctx) {
+            if (ctx.type !== "data" || ctx.xStarted) return 0;
+            ctx.xStarted = true;
+            return ctx.dataIndex * delayBetweenPoints;
+          },
+        },
+        y: {
+          type: "number",
+          easing: "linear",
+          duration: delayBetweenPoints,
+          from(ctx) {
+            if (ctx.type !== "data") return 0;
+            if (ctx.dataIndex === 0) {
+              // start from first value
+              return ctx.chart.scales.y.getPixelForValue(values[0]);
+            }
+            const prevPoint = ctx.chart
+              .getDatasetMeta(ctx.datasetIndex)
+              .data[ctx.dataIndex - 1];
+            return prevPoint.getProps(["y"], true).y;
+          },
+          delay(ctx) {
+            if (ctx.type !== "data" || ctx.yStarted) return 0;
+            ctx.yStarted = true;
+            return ctx.dataIndex * delayBetweenPoints;
+          },
+        },
+      };
+
       equityChart = new Chart(ctx, {
         type: "line",
         data: {
@@ -1090,6 +1131,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation, // 👈 the left-to-right draw animation
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -1102,19 +1144,17 @@
           },
           scales: {
             x: {
-              ticks: { 
-                maxTicksLimit: 6 
-              },
+              ticks: { maxTicksLimit: 6 },
               grid: { display: false },
               border: { display: false },  // no bottom axis line
             },
             y: {
               ticks: {
-                maxTicksLimit: 5,            // 👈 LIMIT Y-AXIS TO 5 LABELS
+                maxTicksLimit: 5,
                 callback: (value) => formatNumber(value, 0),
               },
-              grid: { display: false },      // no horizontal grid lines
-              border: { display: false },    // no left axis line
+              grid: { display: false },    // no horizontal grid lines
+              border: { display: false },  // no left axis line
             },
           },
         },
