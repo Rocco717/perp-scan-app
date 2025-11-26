@@ -320,9 +320,27 @@
       color: #e6e6e6;
     }
 
-    tbody tr:nth-child(odd) { background: #0a0a0a; }
-    tbody tr:nth-child(even) { background: #0e0e0e; }
-    tbody tr:hover { background: #151515; }
+    /* -------- CLEAN TABLE THEME (matches chart background) -------- */
+
+    table {
+      background: transparent !important;   /* no table fill */
+    }
+    /* Remove header box fill */
+    table thead th {
+      background: transparent !important;
+      border-bottom: 1px solid #1a1a1a;     /* subtle bottom line */
+    }
+    /* Rows: no fill, only separators */
+    table tbody tr {
+      background: transparent !important;
+    }
+    table td {
+      border-bottom: 1px solid #111111;     /* subtle separators */
+    }
+    /* Hover: tiny brightness bump */
+    table tbody tr:hover td {
+      background: rgba(255, 255, 255, 0.02) !important;
+    }
 
     .table-wrap {
       border-radius: var(--radius-md);
