@@ -309,30 +309,26 @@
       color: var(--muted);
       margin-top: 4px;
     }
-    .tabs-row {
-      display: inline-flex;
-      gap: 8px;
-      background: rgba(0,0,0,0.6);           /* darker pill group */
-      padding: 4px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      margin-bottom: 8px;
-    }
-    /* Base tabs (INACTIVE) */
+    /* INACTIVE tab (same as inactive range button) */
     .tab-pill {
       border-radius: 999px;
-      border: 1px solid #202020;
-      background: #0b0b0b;
-      color: #7a7a7a;                   /* clearly dimmer */
+      border: none;
+      background: transparent;
       padding: 6px 14px;
       font-size: 0.78rem;
+      color: var(--muted);    /* dim grey */
       cursor: pointer;
-      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      transition: background 0.15s ease, color 0.15s ease;
     }
-    /* Hover on inactive tabs */
+    /* HOVER effect (same as range buttons) */
     .tab-pill:hover:not(.tab-pill-active) {
-      background: #141414;
-      color: #d0d0d0;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+    }
+    /* ACTIVE tab (match All / 90D active styling) */
+    .tab-pill-active {
+      background: #ffffff10;   /* same subtle glow */
+      color: #ffffff;          /* bright text */
     }
     /* ACTIVE TAB — high contrast */
     .tab-pill-active {
