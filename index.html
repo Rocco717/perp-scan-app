@@ -42,12 +42,22 @@
       height: 64px;
       display: flex;
       align-items: center;
-      gap: 14px;           /* spacing between logo + text */
-      padding-left: 24px;  /* LEFT alignment */
+      justify-content: flex-start;
+      gap: 16px;
+      padding: 0 24px;
       backdrop-filter: blur(10px);
       background: rgba(0, 0, 0, 0.25);
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       z-index: 9999;
+    }
+    .topbar-form {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 24px;       /* space between title and search */
+    }
+    .topbar-form input {
+      width: 260px;            /* tighter width for header */
     }
     .topbar-logo {
       height: 40px;
@@ -431,46 +441,44 @@
 <header class="topbar">
   <img src="./assets/PSLOGO.png" class="topbar-logo" onclick="window.location.href='/'">
   <span class="topbar-title" onclick="window.location.href='/'">Perp Scan</span>
-</header>
-  <div class="app">
 
-    <main>
-      <section class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title" id="hero-title">Scan a Hyperliquid account</div>
-            <div class="hero-sub" id="hero-sub">
-              Home = clean, no tables. Once you scan an account, this becomes a shareable detail view URL.
-            </div>
-            <div class="hero-highlight" id="hero-highlight">
-              <span class="hero-highlight-dot"></span>
-              <span id="hero-highlight-text">Step 1 — Paste an address and hit Fetch.</span>
-            </div>
+  <!-- 🔹 Moved search/fetch bar into topbar -->
+  <form id="query-form" class="topbar-form">
+    <input id="account" name="account" type="text" placeholder="0x… / address" required />
+    <button id="fetchBtn" type="submit">Fetch</button>
+  </form>
+</header>
+<div class="app">
+
+  <main>
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title" id="hero-title">Scan a Hyperliquid account</div>
+          <div class="hero-sub" id="hero-sub">
+            Home = clean, no tables. Once you scan an account, this becomes a shareable detail view URL.
+          </div>
+          <div class="hero-highlight" id="hero-highlight">
+            <span class="hero-highlight-dot"></span>
+            <span id="hero-highlight-text">Step 1 — Paste an address and hit Fetch.</span>
           </div>
         </div>
-        <form id="query-form">
-          <div class="form-grid">
-            <div class="field">
-              <label for="baseUrl">Worker base URL</label>
-              <input id="baseUrl" name="baseUrl" type="url"
-                placeholder="https://perp-scan-live.liam-alerts.workers.dev"
-                value="https://perp-scan-live.liam-alerts.workers.dev" />
-              <div class="home-only-text" id="home-helper">
-                Uses your existing Cloudflare Worker <code>/pnlClean</code> endpoint.
-              </div>
-            </div>
-            <div class="field">
-              <label for="account">Account address</label>
-              <input id="account" name="account" type="text" placeholder="0x… / address" required />
-            </div>
-            <div class="field">
-              <label>&nbsp;</label>
-              <button id="fetchBtn" type="submit" style="width:100%;">Fetch</button>
-            </div>
-          </div>
-        </form>
-        <div id="status" class="status"></div>
-      </section>
+      </div>
+  
+      <!-- 🔹 Only Worker base URL stays in the card -->
+      <div class="field">
+        <label for="baseUrl">Worker base URL</label>
+        <input id="baseUrl" name="baseUrl" type="url"
+          placeholder="https://perp-scan-live.liam-alerts.workers.dev"
+          value="https://perp-scan-live.liam-alerts.workers.dev" />
+        <div class="home-only-text" id="home-helper">
+          Uses your existing Cloudflare Worker <code>/pnlClean</code> endpoint.
+        </div>
+      </div>
+  
+      <div id="status" class="status"></div>
+    </section>
+    <!-- ... rest of your main sections ... -->
 
            <!-- NEW TOP ROW: snapshot (left) + chart (right) -->
       <div class="top-row">
