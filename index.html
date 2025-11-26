@@ -932,15 +932,6 @@
     }
   }
 
-    // Determine color based on last vs first
-  const firstValue = filtered[0].equity;
-  const lastValue  = filtered[filtered.length - 1].equity;
-  
-  const isUp = lastValue >= firstValue;
-  
-  const lineColor   = isUp ? "rgba(34,197,94,1)" : "rgba(239,68,68,1)";   // green / red
-  const fillColor   = isUp ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)";
-
   function renderEquityChart(range) {
     const card = document.getElementById("chart-card");
     const hasEquity = Array.isArray(equitySeriesAll) && equitySeriesAll.length > 0;
@@ -1007,24 +998,23 @@
     const labelRange = totalSpan <= dayMs ? "1d" : range;
     const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
     const values = filtered.map(p => p.value);
-    
+  
     // Decide line color based on performance (up = green, down = red)
     let lineColor, fillColor;
-
     if (values.length >= 2) {
       const firstVal = values[0];
       const lastVal  = values[values.length - 1];
       const isUp = lastVal >= firstVal;
-
+  
       lineColor = isUp
         ? "rgba(34,197,94,1)"      // green
         : "rgba(239,68,68,1)";     // red
-
+  
       fillColor = isUp
         ? "rgba(34,197,94,0.15)"
         : "rgba(239,68,68,0.15)";
     } else {
-      // Fallback neutral if we somehow only have one point
+      // Fallback neutral if we only have one point
       lineColor = "rgba(148,163,184,1)";
       fillColor = "rgba(148,163,184,0.15)";
     }
@@ -1040,6 +1030,8 @@
       equityChart.data.labels = labels;
       equityChart.data.datasets[0].data = values;
       equityChart.data.datasets[0].label = labelText;
+      equityChart.data.datasets[0].borderColor = lineColor;
+      equityChart.data.datasets[0].backgroundColor = fillColor;
   
       equityChart.options.plugins.tooltip.callbacks.label = function (ctx) {
         return tooltipPrefix + formatNumber(ctx.parsed.y, 2);
@@ -1082,14 +1074,14 @@
             x: {
               ticks: { maxTicksLimit: 6 },
               grid: { display: false },
-              border: { display: false },  // removes bottom border
+              border: { display: false },  // no bottom axis line
             },
             y: {
               ticks: {
                 callback: (value) => formatNumber(value, 0),
               },
-              grid: { display: false },   // ❌ removes horizontal lines
-              border: { display: false }, // removes axis border line
+              grid: { display: false },    // no horizontal grid lines
+              border: { display: false },  // no left axis line
             },
           },
         },
@@ -1105,78 +1097,9 @@
       }
     });
   
-    // Keep subtitle in sync
+    // Keep subtitle in sync (PnL vs balance)
     updateChartSubtitle();
   }
-
-  function renderPnlChart(tsList, values) {
-  if (!Array.isArray(tsList) || !Array.isArray(values) || tsList.length === 0) {
-    // Decide red/green color
-    const firstP = values[0];
-    const lastP  = values[values.length - 1];
-    const isUpPnL = lastP >= firstP;
-    
-    const pnlLineColor = isUpPnL ? "rgba(34,197,94,1)" : "rgba(239,68,68,1)";
-    const pnlFillColor = isUpPnL ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)";
-    const pnlCard = document.getElementById("pnl-chart-card");
-    if (pnlCard) pnlCard.style.display = "none";
-    return;
-  }
-
-  const pnlCard = document.getElementById("pnl-chart-card");
-  if (!pnlCard) return;
-
-  pnlCard.style.display = "block";
-
-  const ctx2 = document.getElementById("pnlChart");
-  if (!ctx2) return;
-
-  if (pnlChart) {
-    pnlChart.destroy();
-    pnlChart = null;
-  }
-
-  pnlChart = new Chart(ctx2, {
-    type: "line",
-    data: {
-      labels: tsList.map((ts) =>
-        formatEquityLabel(ts, currentRange === "1d")
-      ),
-      datasets: [
-        {
-          label: "Perp PnL",
-          data: values,
-          borderWidth: 2,
-          pointRadius: 2,
-          pointHitRadius: 6,
-          tension: 0.25,
-          borderColor: pnlLineColor,
-          backgroundColor: pnlFillColor,
-          fill: true,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          ticks: {
-            callback: (val) => formatNumber(val, 2),
-          },
-        },
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => "PnL: " + formatNumber(ctx.parsed.y, 2),
-          },
-        },
-      },
-    },
-  });
-}
 
   async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const updateTables = options.updateTables !== false; // default true
