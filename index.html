@@ -74,7 +74,30 @@
     .topbar-title:hover {
       color: #ffffff;
     }
-
+      .home-search {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      max-width: 420px;
+    }
+    .home-search input {
+      flex: 1;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #050505;
+      color: var(--text);
+      padding: 10px 14px;
+      font-size: 0.9rem;
+    }
+    .home-search button {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #111111;
+      padding: 10px 16px;
+      font-size: 0.88rem;
+      color: #fff;
+      cursor: pointer;
+    }
     .app header {
       display: flex;
       justify-content: space-between;
@@ -450,20 +473,24 @@
 </header>
 <div class="app">
 
-  <main>
-    <section class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title" id="hero-title">Scan a Hyperliquid account</div>
-          <div class="hero-sub" id="hero-sub">
-            Home = clean, no tables. Once you scan an account, this becomes a shareable detail view URL.
-          </div>
-          <div class="hero-highlight" id="hero-highlight">
-            <span class="hero-highlight-dot"></span>
-            <span id="hero-highlight-text">Step 1 — Paste an address and hit Fetch.</span>
-          </div>
+<main>
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title" id="hero-title">Scan a Hyperliquid account</div>
+        <div class="hero-sub" id="hero-sub">
+          Home = clean, no tables. Once you scan an account, this becomes a shareable detail view URL.
+        </div>
+        <div class="hero-highlight" id="hero-highlight">
+          <span class="hero-highlight-dot"></span>
+          <span id="hero-highlight-text">Step 1 — Paste an address and hit Fetch.</span>
+        </div>
+        <div id="home-search-bar" class="home-search" style="display:none;">
+          <input id="homeAccount" type="text" placeholder="Paste address…">
+          <button id="homeSearchBtn">Search</button>
         </div>
       </div>
+    </div>
   
       <!-- 🔹 Only Worker base URL stays in the card -->
       <div class="field">
@@ -876,25 +903,39 @@
     const heroSub = document.getElementById("hero-sub");
     const heroHighlightText = document.getElementById("hero-highlight-text");
     const homeHelper = document.getElementById("home-helper");
+    const homeSearchBar = document.getElementById("home-search-bar");
   
     if (isDetail) {
+      // Show detail content
       summaryCard.style.display = "";
       tablesCard.style.display = "";
       chartCard.style.display = "";
       if (pnlChartCard) pnlChartCard.style.display = "";
+  
+      // Update hero text for detail mode
       heroTitle.textContent = "Account detail view";
       heroSub.textContent = "This URL is now shareable — it will auto-load this address and time window.";
       heroHighlightText.textContent = "Tip — Bookmark this tab as your personal PnL dashboard.";
+  
+      // Hide home elements
       homeHelper.style.display = "none";
-    } else {
+      homeSearchBar.style.display = "none";        // 🔥 important
+    } 
+    else {
+      // Hide detail content
       summaryCard.style.display = "none";
       tablesCard.style.display = "none";
       chartCard.style.display = "none";
       if (pnlChartCard) pnlChartCard.style.display = "none";
+  
+      // Update hero text for home mode
       heroTitle.textContent = "Scan a Hyperliquid account";
       heroSub.textContent = "Home = clean, no tables. Once you scan an account, this becomes a shareable detail view URL.";
-      heroHighlightText.textContent = "Step 1 — Paste an address and hit Fetch.";
+      heroHighlightText.textContent = "Step 1 — Paste an address and hit Search.";
+  
+      // Show home elements
       homeHelper.style.display = "block";
+      homeSearchBar.style.display = "flex";        // 🔥 important
     }
   }
 
@@ -1448,17 +1489,32 @@
     const baseParam = params.get("base");
     const accountParam = params.get("account");
     const periodParam = params.get("period"); // this is our stored UI range now
-
+  
     const baseInput = document.getElementById("baseUrl");
     const accountInput = document.getElementById("account");
-    const periodSelect = document.getElementById("period"); // still present in DOM, but no longer used for API
-
+    const periodSelect = document.getElementById("period");
+  
     if (baseParam) baseInput.value = baseParam;
     if (accountParam) accountInput.value = accountParam;
-
+  
     if (periodParam && ["all","90d","30d","7d","1d"].includes(periodParam)) {
       currentRange = periodParam;
     }
+  
+    const homeSearchBtn = document.getElementById("homeSearchBtn");
+    if (homeSearchBtn) {
+      homeSearchBtn.addEventListener("click", () => {
+        const val = document.getElementById("homeAccount").value.trim();
+        if (!val) return;
+  
+        // Put value into the topbar search box
+        document.getElementById("account").value = val;
+  
+        // Trigger the same fetch logic
+        handleSubmit();
+      });
+    }
+  });
 
     // Keep the dropdown showing something sane (not used for backend anymore)
     if (periodSelect) {
