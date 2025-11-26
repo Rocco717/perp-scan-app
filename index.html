@@ -1007,13 +1007,34 @@
     const labelRange = totalSpan <= dayMs ? "1d" : range;
     const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
     const values = filtered.map(p => p.value);
+    
+    // Decide line color based on performance (up = green, down = red)
+    let lineColor, fillColor;
+
+    if (values.length >= 2) {
+      const firstVal = values[0];
+      const lastVal  = values[values.length - 1];
+      const isUp = lastVal >= firstVal;
+
+      lineColor = isUp
+        ? "rgba(34,197,94,1)"      // green
+        : "rgba(239,68,68,1)";     // red
+
+      fillColor = isUp
+        ? "rgba(34,197,94,0.15)"
+        : "rgba(239,68,68,0.15)";
+    } else {
+      // Fallback neutral if we somehow only have one point
+      lineColor = "rgba(148,163,184,1)";
+      fillColor = "rgba(148,163,184,0.15)";
+    }
   
     const ctx = document.getElementById("equityChart").getContext("2d");
   
     const labelText = activeChartMode === "pnl" ? "Perp PnL" : "Perp balance";
     const tooltipPrefix = activeChartMode === "pnl"
-      ? "PnL: "
-      : "Perp balance: ";
+      ? "PnL: $"
+      : "Perp balance: $";
   
     if (equityChart) {
       equityChart.data.labels = labels;
