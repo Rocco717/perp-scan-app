@@ -255,26 +255,29 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.78rem;
+      font-size: 0.85rem;
       margin-top: 4px;
-    }
-    th, td {
-      padding: 6px 8px;
-      text-align: left;
-      border-bottom: 1px solid #111111;
-    }
-    th {
-      font-size: 0.74rem;
-      font-weight: 540;
-      color: var(--muted);
-      background: #050505;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-    tbody tr:nth-child(odd) { background: #050505; }
-    tbody tr:nth-child(even) { background: #080808; }
-    tbody tr:hover { background: #151515; }
+      color: var(--text); 
+      th, td {
+        padding: 10px 12px;            /* EVEN column spacing */
+        text-align: left;
+        border-bottom: 1px solid #111111;
+      }
+      th {
+        font-size: 0.8rem;             /* larger header text */
+        font-weight: 550;
+        color: #c7c7c7;                /* brighter header */
+        background: #050505;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      td {
+        color: #e6e6e6;
+      }
+      tbody tr:nth-child(odd) { background: #0a0a0a; }
+      tbody tr:nth-child(even) { background: #0e0e0e; }
+      tbody tr:hover { background: #151515; }
   
     .table-wrap {
       border-radius: var(--radius-md);
@@ -431,10 +434,6 @@
           <div class="logo-main">Perp Scan</div>
           <div class="logo-sub">On-chain PnL & positions from your browser</div>
         </div>
-      </div>
-      <div class="tag">
-        <span class="tag-dot"></span>
-        <span>v1.4 · Address viewer + chart</span>
       </div>
     </header>
 
