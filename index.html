@@ -42,57 +42,39 @@
       height: 64px;
       display: flex;
       align-items: center;
+      gap: 12px;
       backdrop-filter: blur(10px);
       background: rgba(0, 0, 0, 0.25);
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       z-index: 9999;
       padding-left: 24px;
     }
-    .topbar img {
+    /* New logo */
+    .topbar-logo {
       height: 40px;
+      width: 40px;
+      object-fit: contain;
       cursor: pointer;
+      user-select: none;
     }
+    /* “Perp Scan” text */
+    .topbar-title {
+      font-size: 1.1rem;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      color: #e5e5e5;
+    }
+    .topbar-title:hover {
+      color: #ffffff;
+    }
+
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
       margin-bottom: 18px;
-    }
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-    }
-    .logo-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 20%, #38bdf8, #0ea5e9 45%, #0369a1 100%);
-      box-shadow: none;
-      position: relative;
-      overflow: hidden;
-    }
-    .logo-icon::after {
-      content: "";
-      position: absolute;
-      inset: 18% 16%;
-      border-radius: 999px;
-      border: 2px solid rgba(15,23,42,0.9);
-      border-top-color: transparent;
-      border-left-color: transparent;
-      transform: rotate(-30deg);
-      opacity: 0.9;
-    }
-    .logo-main {
-      font-weight: 650;
-      letter-spacing: 0.02em;
-      font-size: 1.05rem;
-    }
-    .logo-sub {
-      font-size: 0.78rem;
-      color: var(--muted);
     }
     .tag {
       padding: 4px 9px;
@@ -450,9 +432,10 @@
   </style>
 </head>
 <body>
-  <header class="topbar">
-  <img src="YOUR_LOGO.png" onclick="window.location.href='/'" />
-  </header>
+<header class="topbar">
+  <img src="PSLOGO.png" class="topbar-logo" alt="logo" onclick="window.location.href='/'">
+  <span class="topbar-title" onclick="window.location.href='/'">Perp Scan</span>
+</header>
   <div class="app">
     <header>
       <a class="logo" href="index.html" style="text-decoration:none; color:inherit;">
