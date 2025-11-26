@@ -318,23 +318,30 @@
       border: 1px solid var(--border);
       margin-bottom: 8px;
     }
+    /* Base tabs (inactive state) */
     .tab-pill {
       border-radius: 999px;
       border: none;
-      background: transparent;               /* no background */
-      color: var(--muted);                   /* soft grey text */
+      background: #0f0f0f;        /* darker pill */
+      color: #777;                /* dim text */
       padding: 6px 14px;
       font-size: 0.78rem;
       cursor: pointer;
-      transition: color 0.15s ease, background 0.15s ease;
+      transition: background 0.15s ease, color 0.15s ease;
     }
-    .tab-pill:hover {
-      color: var(--text);                    /* brighter on hover */
-      background: rgba(255,255,255,0.05);    /* subtle hover */
+    
+    /* Hover on inactive tabs */
+    .tab-pill:hover:not(.tab-pill-active) {
+      background: #181818;        /* slightly brighter */
+      color: #ccc;
     }
+    
+    /* ACTIVE TAB — clearly highlighted */
     .tab-pill-active {
-      background: rgba(255,255,255,0.08);    /* slight brighter bg, NOT green */
-      color: #ffffff;                        /* white text */
+      background: #1c1c1c !important;  /* bright pill background */
+      color: #ffffff !important;        /* bright text */
+      font-weight: 550;
+      border: 1px solid #333333;        /* subtle outline to make it pop */
     }
     }
     .tab-count {
