@@ -257,28 +257,33 @@
       border-collapse: collapse;
       font-size: 0.85rem;
       margin-top: 4px;
-      color: var(--text); 
-      th, td {
-        padding: 10px 12px;            /* EVEN column spacing */
-        text-align: left;
-        border-bottom: 1px solid #111111;
-      }
-      th {
-        font-size: 0.8rem;             /* larger header text */
-        font-weight: 550;
-        color: #c7c7c7;                /* brighter header */
-        background: #050505;
-        position: sticky;
-        top: 0;
-        z-index: 1;
-      }
-      td {
-        color: #e6e6e6;
-      }
-      tbody tr:nth-child(odd) { background: #0a0a0a; }
-      tbody tr:nth-child(even) { background: #0e0e0e; }
-      tbody tr:hover { background: #151515; }
-  
+      color: var(--text);
+    }
+
+    th, td {
+      padding: 10px 12px;            /* EVEN column spacing */
+      text-align: left;
+      border-bottom: 1px solid #111111;
+    }
+
+    th {
+      font-size: 0.8rem;             /* larger header text */
+      font-weight: 550;
+      color: #c7c7c7;                /* brighter header */
+      background: #050505;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td {
+      color: #e6e6e6;
+    }
+
+    tbody tr:nth-child(odd) { background: #0a0a0a; }
+    tbody tr:nth-child(even) { background: #0e0e0e; }
+    tbody tr:hover { background: #151515; }
+
     .table-wrap {
       border-radius: var(--radius-md);
       border: 1px solid var(--border);
@@ -286,12 +291,13 @@
       background: #000;                    /* no blue gradient */
       max-height: 360px;
     }
+
     .table-inner-scroll {
       max-height: 360px;
       overflow: auto;
       background: #000;                    /* pure dark */
     }
-  
+
     .raw-json {
       margin-top: 8px;
       font-size: 0.74rem;
@@ -303,12 +309,17 @@
       max-height: 260px;
       color: var(--muted);
     }
+
     summary { cursor: pointer; user-select: none; }
+
     .home-only-text {
       font-size: 0.8rem;
       color: var(--muted);
       margin-top: 4px;
     }
+
+    /* ---------- TABLE TABS (match range buttons) ---------- */
+
     /* INACTIVE tab (same as inactive range button) */
     .tab-pill {
       border-radius: 999px;
@@ -316,7 +327,7 @@
       background: transparent;
       padding: 6px 14px;
       font-size: 0.78rem;
-      color: var(--muted);    /* dim grey */
+      color: var(--muted);                 /* dim grey */
       cursor: pointer;
       transition: background 0.15s ease, color 0.15s ease;
     }
@@ -327,16 +338,8 @@
     }
     /* ACTIVE tab (match All / 90D active styling) */
     .tab-pill-active {
-      background: #ffffff10;   /* same subtle glow */
-      color: #ffffff;          /* bright text */
-    }
-    /* ACTIVE TAB — high contrast */
-    .tab-pill-active {
-      background: #f5f5f5 !important;   /* light pill, stands out hard */
-      color: #111111 !important;        /* dark text */
-      font-weight: 600;
-      border-color: #f5f5f5 !important;
-    }
+      background: #ffffff10;               /* subtle white tint */
+      color: #ffffff;                      /* bright text */
     }
     .tab-count {
       font-size: 0.72rem;
