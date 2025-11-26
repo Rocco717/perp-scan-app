@@ -1102,16 +1102,19 @@
           },
           scales: {
             x: {
-              ticks: { maxTicksLimit: 6 },
+              ticks: { 
+                maxTicksLimit: 6 
+              },
               grid: { display: false },
               border: { display: false },  // no bottom axis line
             },
             y: {
               ticks: {
+                maxTicksLimit: 5,            // 👈 LIMIT Y-AXIS TO 5 LABELS
                 callback: (value) => formatNumber(value, 0),
               },
-              grid: { display: false },    // no horizontal grid lines
-              border: { display: false },  // no left axis line
+              grid: { display: false },      // no horizontal grid lines
+              border: { display: false },    // no left axis line
             },
           },
         },
