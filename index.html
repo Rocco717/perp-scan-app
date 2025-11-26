@@ -881,41 +881,35 @@
     const summaryCard = document.getElementById("summary-card");
     const tablesCard = document.getElementById("tables-card");
     const chartCard = document.getElementById("chart-card");
-    const pnlChartCard = document.getElementById("pnl-chart-card");
+    const pnlChartCard = document.getElementById("pnl-chart-card"); // might not exist, safe
     const heroTitle = document.getElementById("hero-title");
     const homeSearchBar = document.getElementById("home-search-bar");
   
     if (isDetail) {
-      // Show detail content
-      summaryCard.style.display = "";
-      tablesCard.style.display = "";
-      chartCard.style.display = "";
-      if (pnlChartCard) pnlChartCard.style.display = "";
-  
-      // Update hero text for detail mode
-      heroTitle.textContent = "Account detail view";
-      heroSub.textContent = "This URL is now shareable — it will auto-load this address and time window.";
-      heroHighlightText.textContent = "Tip — Bookmark this tab as your personal PnL dashboard.";
-  
-      // Hide home elements
-      homeHelper.style.display = "none";
-      homeSearchBar.style.display = "none";        // 🔥 important
-    } 
-    else {
-      // Hide detail content
-      summaryCard.style.display = "none";
-      tablesCard.style.display = "none";
-      chartCard.style.display = "none";
+      // Show detail UI
+      if (summaryCard) summaryCard.style.display = "";
+      if (tablesCard) tablesCard.style.display = "";
+      if (chartCard) chartCard.style.display = "";
       if (pnlChartCard) pnlChartCard.style.display = "none";
   
-      // Update hero text for home mode
-      heroTitle.textContent = "Scan a Hyperliquid account";
-      heroSub.textContent = "Home = clean, no tables. Once you scan an account, this becomes a shareable detail view URL.";
-      heroHighlightText.textContent = "Step 1 — Paste an address and hit Search.";
+      // Update title
+      if (heroTitle) heroTitle.textContent = "Account detail view";
   
-      // Show home elements
-      homeHelper.style.display = "block";
-      homeSearchBar.style.display = "flex";        // 🔥 important
+      // Hide home search bar
+      if (homeSearchBar) homeSearchBar.style.display = "none";
+  
+    } else {
+      // Hide detail UI
+      if (summaryCard) summaryCard.style.display = "none";
+      if (tablesCard) tablesCard.style.display = "none";
+      if (chartCard) chartCard.style.display = "none";
+      if (pnlChartCard) pnlChartCard.style.display = "none";
+  
+      // Update title
+      if (heroTitle) heroTitle.textContent = "Scan a Hyperliquid account";
+  
+      // Show home search bar
+      if (homeSearchBar) homeSearchBar.style.display = "flex";
     }
   }
 
