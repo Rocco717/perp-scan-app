@@ -343,13 +343,13 @@
     }
 
     .table-wrap {
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border);
-      overflow: hidden;
-      background: transparent !important;    /* NEW */
-      max-height: 360px;
+      border: none !important;             /* 🔥 remove the outer box completely */
+      border-radius: 0 !important;
+      background: transparent !important;
+      overflow: visible !important;        /* 🔥 prevents cut edges */
+      padding: 0;                          /* ensure no forced box look */
+      margin: 0;
     }
-    
     .table-inner-scroll {
       max-height: 360px;
       overflow: auto;
