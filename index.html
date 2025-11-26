@@ -50,7 +50,7 @@
       height: 32px;
       border-radius: 999px;
       background: radial-gradient(circle at 30% 20%, #38bdf8, #0ea5e9 45%, #0369a1 100%);
-      box-shadow: 0 0 0 1px rgba(148,163,184,0.35), 0 16px 30px rgba(15,23,42,0.75);
+      box-shadow: none;
       position: relative;
       overflow: hidden;
     }
@@ -93,12 +93,12 @@
       box-shadow: none;
     }
     .card {
-      background: var(--card);                         /* pure dark card background */
+      background: var(--card);
       border-radius: var(--radius-lg);
-      border: 1px solid var(--border);                 /* subtle dark border */
+      border: 1px solid var(--border);
       padding: 18px 18px 14px;
       margin-bottom: 16px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.35);           /* soft depth */
+      box-shadow: none;
     }
     .card-header {
       display: flex;
@@ -136,8 +136,8 @@
       width: 7px;
       height: 7px;
       border-radius: 999px;
-      background: var(--success);                /* green dot like cashflow */
-      box-shadow: 0 0 0 4px rgba(59,232,121,0.25);
+      background: var(--success);
+      box-shadow: none;
     }
     .form-grid {
       display: grid;
@@ -164,11 +164,15 @@
       outline: none;
       transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
     }
-    input::placeholder { color: #4b5563; }
-    input:focus, select:focus {
-      border-color: var(--success);
-      box-shadow: 0 0 0 1px rgba(59,232,121,0.35);
-      background: #050505;
+    input::placeholder {
+      color: #6b6b6b; /* softer muted gray */
+    }
+    input:focus,
+    select:focus {
+      border-color: #ffffff;      /* white border on focus */
+      box-shadow: none;           /* no glow */
+      background: #050505;        /* stays dark */
+      color: var(--text);         /* keep visible text */
     }
     button {
       border-radius: 999px;
