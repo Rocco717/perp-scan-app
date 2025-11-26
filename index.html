@@ -1119,8 +1119,9 @@
               label: labelText,
               data: values,
               borderWidth: 2,
-              pointRadius: 2,
-              pointHitRadius: 6,
+              pointRadius: 0,          // 👈 hide points by default
+              pointHoverRadius: 4,     // 👈 show a dot on hover
+              pointHitRadius: 8,       // easier to hover
               tension: 0.25,
               borderColor: lineColor,
               backgroundColor: fillColor,
