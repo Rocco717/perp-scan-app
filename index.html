@@ -17,6 +17,7 @@
       --pill-text: #e5e5e5;
       --success: #3be879;       /* Bright neon green */
       --danger: #ff5555;        /* Clean red */
+      --radius-lg: 14px; 
     }
     * { box-sizing: border-box; }
     body {
@@ -259,6 +260,7 @@
       font-size: 0.85rem;
       margin-top: 4px;
       color: var(--text);
+      background: transparent !important;   /* no table fill */
     }
 
     th, td {
@@ -283,9 +285,6 @@
 
     /* -------- CLEAN TABLE THEME (matches chart background) -------- */
 
-    table {
-      background: transparent !important;   /* no table fill */
-    }
     /* Remove header box fill */
     table thead th {
       background: transparent !important;
@@ -434,13 +433,13 @@
   
     @media (max-width: 840px) {
       body { padding: 12px; }
-      header { flex-direction: column; align-items: flex-start; }
-      .form-grid { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+      /* header { ... }  ← remove this line */
       button { justify-content: center; width: 100%; }
       .grid-2 { grid-template-columns: minmax(0, 1fr); }
       .tabs-row { width: 100%; justify-content: space-between; flex-wrap: wrap; }
       .range-row { margin-top: 8px; }
     }
+
   </style>
 </head>
 <body>
@@ -866,7 +865,6 @@ function setDetailMode(isDetail) {
   const summaryCard = document.getElementById("summary-card");
   const tablesCard = document.getElementById("tables-card");
   const chartCard = document.getElementById("chart-card");
-  const pnlChartCard = document.getElementById("pnl-chart-card"); // might not exist, safe
   const heroTitle = document.getElementById("hero-title");
   const homeSearchBar = document.getElementById("home-search-bar");
   const detailSummaryRow = document.getElementById("detail-summary-row"); // 🔹 new
@@ -1402,34 +1400,26 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       const positions = data.positions || data.openPositions || data.open || [];
       const closed = data.closed || data.closedTrades || data.trades || [];
 
-      const fundingEvents = data.fundingEvents || [];
-
       const positionsContainer = document.getElementById("positionsTableContainer");
       const closedContainer = document.getElementById("closedTableContainer");
       const cashContainer = document.getElementById("cashTableContainer");
-
+      
+      // Build tables
       buildTable(positionsContainer, positions, { type: "positions" });
       buildTable(closedContainer, closed, { type: "closed" });
-
-      fundingEventsAll = (data.fundingEvents || []).filter(ev => ev.kind === "perpTransfer")
-        .sort((a, b) => b.time - a.time);   // newest first
+      
+      // Filter funding events once
+      fundingEventsAll = (data.fundingEvents || [])
+        .filter(ev => ev.kind === "perpTransfer")
+        .sort((a, b) => b.time - a.time); // newest first
       
       fundingPage = 0;
       renderFundingTable(cashContainer);
-
-      const posCount = document.getElementById("positionsCount");
-      const closedCount = document.getElementById("closedCount");
-      const cashCount = document.getElementById("cashCount");
-
-      posCount.textContent =
-        "(" + (Array.isArray(positions) ? positions.length : 0) + ")";
-      closedCount.textContent =
-        "(" + (Array.isArray(closed) ? closed.length : 0) + ")";
-
-      const perpEventsCount = fundingEvents.filter(
-        (ev) => ev.kind === "perpTransfer",
-      ).length;
-      cashCount.textContent = "(" + perpEventsCount + ")";
+      
+      // Update tab counts
+      document.getElementById("positionsCount").textContent = `(${positions.length})`;
+      document.getElementById("closedCount").textContent = `(${closed.length})`;
+      document.getElementById("cashCount").textContent = `(${fundingEventsAll.length})`;
     }
 
     // --- Perp balance series ---
@@ -1490,17 +1480,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const periodParam = params.get("period");
 
   const accountInput = document.getElementById("account");
-  const periodSelect = document.getElementById("period"); // if present
 
   if (accountParam) accountInput.value = accountParam;
 
   if (periodParam && ["all","90d","30d","7d","1d"].includes(periodParam)) {
     currentRange = periodParam;
-  }
-
-  // Keep the dropdown showing something sane (even if unused)
-  if (periodSelect) {
-    periodSelect.value = "allTime";
   }
 
   // 🔹 Home search bar → trigger topbar search
