@@ -431,21 +431,22 @@
       align-items: flex-end;
       gap: 8px;
     }
-    .chart-live-value {
-      font-size: 0.82rem;
-      font-weight: 500;
-      color: var(--muted);          /* grey, like axis labels */
-    }
-    /* span that wraps JUST the number */
-    .chart-live-number {
-      margin-left: 4px;
-    }
-    .chart-live-positive {
-      color: var(--success);
-    }
-    .chart-live-negative {
-      color: var(--danger);
-    }
+      .chart-live-value {
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--muted);          /* grey, like axis labels */
+      }
+      /* This wraps JUST the number */
+      .chart-live-number {
+        margin-left: 4px;
+      }
+      /* Color only the number span, not any parent */
+      .chart-live-number.chart-live-positive {
+        color: var(--success);
+      }
+      .chart-live-number.chart-live-negative {
+        color: var(--danger);
+      }
   
     /* ---------- CHART CONTAINERS ---------- */
     #equityChartContainer,
@@ -1100,6 +1101,9 @@
     // --- Update live value label (top-right) ---
     const liveEl = document.getElementById("chart-live-value");
     if (liveEl) {
+      // make sure the container itself never carries color classes
+      liveEl.classList.remove("chart-live-positive", "chart-live-negative");
+    
       if (values.length) {
         const lastVal = values[values.length - 1];
     
@@ -1122,7 +1126,7 @@
           : lastVal < 0 ? "chart-live-negative"
           : "";
     
-        // Use HTML so only the number is colored
+        // Use HTML so only the number span gets the color class
         liveEl.innerHTML =
           `${rangeLabel} ${modeLabel} ` +
           `<span class="chart-live-number ${numberClass}">${sign}${absText}</span>`;
