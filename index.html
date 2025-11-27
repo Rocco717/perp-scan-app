@@ -659,133 +659,159 @@
     });
   }
 
-  function buildTable(container, rows, opts = {}) {
-    container.innerHTML = "";
-    if (!Array.isArray(rows) || rows.length === 0) {
-      container.innerHTML =
-        '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">No data returned.</div>';
-      return;
-    }
+function buildTable(container, rows, opts = {}) {
+  container.innerHTML = "";
+  if (!Array.isArray(rows) || rows.length === 0) {
+    container.innerHTML =
+      '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">No data returned.</div>';
+    return;
+  }
 
-    const isPositions = opts.type === "positions";
-    const isClosed = opts.type === "closed";
+  const isPositions = opts.type === "positions";
+  const isClosed = opts.type === "closed";
 
-    const displayNames = isPositions
-      ? {
-          coin: "Asset",                 // was "coin"          
-          side: "Direction",
-          size: "Size",                  // capital S
-          entryPx: "Entry Price",
-          markPx: "Current Price",
-          unrealizedPnl: "Unrealized PnL",
-          leverage: "Leverage",          // capital L
-          value: "Position Value",
-        }
-      : isClosed
-      ? {
-          netPnl: "Net PnL",
-          sizeClosed: "Size Closed",
-          avgEntryPx: "Entry Price",
-          exitPx: "Exit Price",
-          durationMs: "Duration",
-        }
-      : {};
-
-    const hidden = isPositions
-      ? new Set(["coinIdx", "notional", "basisPct", "unrealizedPct", "roiPct", "roePct", "leverage"])
-      : isClosed
-      ? new Set(["endTs"])
-      : new Set([]);
-
-    let keys = Object.keys(rows[0] || {}).filter((k) => {
-      const v = rows[0][k];
-      if (typeof v === "object" || typeof v === "function") return false;
-      if (hidden.has(k)) return false;
-      return true;
-    });
-
-    // 🔹 For positions: move "value" (Position Value) right next to "side" (Direction)
-    if (isPositions) {
-      const idxSide = keys.indexOf("side");
-      const idxValue = keys.indexOf("value");
-      if (idxSide !== -1 && idxValue !== -1 && idxValue !== idxSide + 1) {
-        // remove "value" from its old spot
-        keys.splice(idxValue, 1);
-        // insert it right after "side"
-        keys.splice(idxSide + 1, 0, "value");
+  const displayNames = isPositions
+    ? {
+        coin: "Asset",
+        side: "Direction",
+        value: "Position Value / Size",
+        entryPx: "Entry Price",
+        markPx: "Current Price",
+        unrealizedPnl: "Unrealized PnL",
       }
+    : isClosed
+    ? {
+        netPnl: "Net PnL",
+        sizeClosed: "Size Closed",
+        avgEntryPx: "Entry Price",
+        exitPx: "Exit Price",
+        durationMs: "Duration",
+      }
+    : {};
+
+  const hidden = isPositions
+    ? new Set([
+        "coinIdx",
+        "notional",
+        "basisPct",
+        "unrealizedPct",
+        "roiPct",
+        "roePct",
+        "leverage", // hidden: we inline it into Direction
+        "size",     // hidden: we inline it under Position Value
+      ])
+    : isClosed
+    ? new Set(["endTs"])
+    : new Set([]);
+
+  let keys = Object.keys(rows[0] || {}).filter((k) => {
+    const v = rows[0][k];
+    if (typeof v === "object" || typeof v === "function") return false;
+    if (hidden.has(k)) return false;
+    return true;
+  });
+
+  // 🔹 For positions: ensure "value" (Position Value) is right after "side" (Direction)
+  if (isPositions) {
+    const idxSide = keys.indexOf("side");
+    const idxValue = keys.indexOf("value");
+    if (idxSide !== -1 && idxValue !== -1 && idxValue !== idxSide + 1) {
+      keys.splice(idxValue, 1);
+      keys.splice(idxSide + 1, 0, "value");
     }
+  }
 
-    if (!keys.length) {
-      container.innerHTML =
-        '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">Unsupported row format.</div>';
-      return;
-    }
+  if (!keys.length) {
+    container.innerHTML =
+      '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">Unsupported row format.</div>';
+    return;
+  }
 
-    const table = document.createElement("table");
-    const thead = document.createElement("thead");
-    const trHead = document.createElement("tr");
-    keys.forEach((key) => {
-      const th = document.createElement("th");
-      th.textContent = displayNames[key] || key;
-      trHead.appendChild(th);
-    });
-    thead.appendChild(trHead);
-    table.appendChild(thead);
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const trHead = document.createElement("tr");
+  keys.forEach((key) => {
+    const th = document.createElement("th");
+    th.textContent = displayNames[key] || key;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+  table.appendChild(thead);
 
-    const tbody = document.createElement("tbody");
-    rows.forEach((r) => {
-      const tr = document.createElement("tr");
-      keys.forEach((k) => {
-        const td = document.createElement("td");
-        let v = r[k];
+  const tbody = document.createElement("tbody");
+  rows.forEach((r) => {
+    const tr = document.createElement("tr");
+    keys.forEach((k) => {
+      const td = document.createElement("td");
+      let v = r[k];
 
-        // 🔹 Special case: Direction column for positions → "Long - 5x"
-        if (isPositions && k === "side") {
-          const sideText = v == null ? "" : String(v);
-          const lev = typeof r.leverage === "number" ? r.leverage : null;
-          td.textContent = lev ? `${sideText} - ${lev}x` : sideText;
-        } else if (typeof v === "number") {
+      // 🔹 Special case: Direction column for positions → "Long - 5x"
+      if (isPositions && k === "side") {
+        const sideText = v == null ? "" : String(v);
+        const lev = typeof r.leverage === "number" ? r.leverage : null;
+        td.textContent = lev ? `${sideText} - ${lev}x` : sideText;
 
-          // 🎯 Human format for duration
-          if (k === "durationMs" && isClosed) {
-            td.textContent = humanizeDuration(v);
+      // 🔹 Special case: Position Value cell with size underneath
+      } else if (isPositions && k === "value") {
+        const main =
+          typeof v === "number"
+            ? "$" + formatNumber(v, 2)
+            : v == null
+            ? ""
+            : String(v);
 
-          // 🎯 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
-          } else if (k === "unrealizedPnl") {
-            const sign = v >= 0 ? "" : "-";
-            const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
+        const sz = typeof r.size === "number" ? r.size : null;
+        const coin = r.coin ? String(r.coin).toUpperCase() : "";
+        const sub =
+          sz != null
+            ? `${formatNumber(sz, 2)}${coin ? " " + coin : ""}`
+            : "";
 
-            const roe = typeof r.roePct === "number" ? r.roePct : null;
-            let roeText = "";
-            if (roe !== null) {
-              const pctSign = roe >= 0 ? "" : "-";
-              roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
-            }
+        td.innerHTML = sub
+          ? `<div>${main}</div>
+             <div style="font-size:0.78rem; color: var(--muted); margin-top:2px;">${sub}</div>`
+          : `<div>${main}</div>`;
 
-            td.textContent = baseText + roeText;
+      } else if (typeof v === "number") {
+        // 🎯 Human format for duration
+        if (k === "durationMs" && isClosed) {
+          td.textContent = humanizeDuration(v);
 
-            if (v > 0) td.style.color = "var(--success)";
-            if (v < 0) td.style.color = "var(--danger)";
+        // 🎯 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
+        } else if (k === "unrealizedPnl") {
+          const sign = v >= 0 ? "" : "-";
+          const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
 
-          // 🎯 All other numbers (entryPx, markPx, size, etc.)
-          } else {
-            const decimals =
-              k === "entryPx" || k === "markPx" ? 4 : 2;
-            td.textContent = formatNumber(v, decimals);
+          const roe = typeof r.roePct === "number" ? r.roePct : null;
+          let roeText = "";
+          if (roe !== null) {
+            const pctSign = roe >= 0 ? "" : "-";
+            roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
           }
 
+          td.textContent = baseText + roeText;
+
+          if (v > 0) td.style.color = "var(--success)";
+          if (v < 0) td.style.color = "var(--danger)";
+
+        // 🎯 All other numbers (entryPx, markPx, etc.)
         } else {
-          td.textContent = v == null ? "" : String(v);
+          const decimals =
+            k === "entryPx" || k === "markPx" ? 4 : 2;
+          td.textContent = formatNumber(v, decimals);
         }
 
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
+      } else {
+        td.textContent = v == null ? "" : String(v);
+      }
+
+      tr.appendChild(td);
     });
-    table.appendChild(tbody);
-    container.appendChild(table);
-  }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
 
   function renderFundingTable(container) {
     container.innerHTML = "";
