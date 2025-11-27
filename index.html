@@ -692,17 +692,29 @@
       : {};
 
     const hidden = isPositions
-      ? new Set(["coinIdx", "notional", "basisPct", "unrealizedPct", "roiPct", "roePct"])
+      ? new Set(["coinIdx", "notional", "basisPct", "unrealizedPct", "roiPct", "roePct", "leverage"])
       : isClosed
       ? new Set(["endTs"])
       : new Set([]);
 
-    const keys = Object.keys(rows[0] || {}).filter((k) => {
+    let keys = Object.keys(rows[0] || {}).filter((k) => {
       const v = rows[0][k];
       if (typeof v === "object" || typeof v === "function") return false;
       if (hidden.has(k)) return false;
       return true;
     });
+
+    // 🔹 For positions: move "value" (Position Value) right next to "side" (Direction)
+    if (isPositions) {
+      const idxSide = keys.indexOf("side");
+      const idxValue = keys.indexOf("value");
+      if (idxSide !== -1 && idxValue !== -1 && idxValue !== idxSide + 1) {
+        // remove "value" from its old spot
+        keys.splice(idxValue, 1);
+        // insert it right after "side"
+        keys.splice(idxSide + 1, 0, "value");
+      }
+    }
 
     if (!keys.length) {
       container.innerHTML =
@@ -727,45 +739,46 @@
       keys.forEach((k) => {
         const td = document.createElement("td");
         let v = r[k];
-    
-      if (typeof v === "number") {
-      
-        // 🎯 Format leverage as "5x"
-        if (k === "leverage") {
-          td.textContent = v ? `${v}x` : "";
-      
-        // 🎯 Human format for duration
-        } else if (k === "durationMs" && isClosed) {
-          td.textContent = humanizeDuration(v);
-      
-        // 🎯 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
-        } else if (k === "unrealizedPnl") {
-          const sign = v >= 0 ? "" : "-";
-          const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
-      
-          const roe = typeof r.roePct === "number" ? r.roePct : null;
-          let roeText = "";
-          if (roe !== null) {
-            const pctSign = roe >= 0 ? "" : "-";
-            roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
+
+        // 🔹 Special case: Direction column for positions → "Long - 5x"
+        if (isPositions && k === "side") {
+          const sideText = v == null ? "" : String(v);
+          const lev = typeof r.leverage === "number" ? r.leverage : null;
+          td.textContent = lev ? `${sideText} - ${lev}x` : sideText;
+        } else if (typeof v === "number") {
+
+          // 🎯 Human format for duration
+          if (k === "durationMs" && isClosed) {
+            td.textContent = humanizeDuration(v);
+
+          // 🎯 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
+          } else if (k === "unrealizedPnl") {
+            const sign = v >= 0 ? "" : "-";
+            const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
+
+            const roe = typeof r.roePct === "number" ? r.roePct : null;
+            let roeText = "";
+            if (roe !== null) {
+              const pctSign = roe >= 0 ? "" : "-";
+              roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
+            }
+
+            td.textContent = baseText + roeText;
+
+            if (v > 0) td.style.color = "var(--success)";
+            if (v < 0) td.style.color = "var(--danger)";
+
+          // 🎯 All other numbers (entryPx, markPx, size, etc.)
+          } else {
+            const decimals =
+              k === "entryPx" || k === "markPx" ? 4 : 2;
+            td.textContent = formatNumber(v, decimals);
           }
-      
-          td.textContent = baseText + roeText;
-      
-          if (v > 0) td.style.color = "var(--success)";
-          if (v < 0) td.style.color = "var(--danger)";
-      
-        // 🎯 All other numbers (entryPx, markPx, size, etc.)
+
         } else {
-          const decimals =
-            k === "entryPx" || k === "markPx" ? 4 : 2;
-          td.textContent = formatNumber(v, decimals);
+          td.textContent = v == null ? "" : String(v);
         }
-      
-      } else {
-        td.textContent = v == null ? "" : String(v);
-      }
-    
+
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
