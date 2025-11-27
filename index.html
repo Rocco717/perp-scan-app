@@ -528,42 +528,46 @@
     <div class="card-header">
       <div>
         <div class="card-title" id="hero-title">Scan a Hyperliquid account</div>
+
+        <!-- Home page search bar -->
         <div id="home-search-bar" class="home-search" style="display:none;">
           <input id="homeAccount" type="text" placeholder="Paste address…">
           <button id="homeSearchBtn">Search</button>
         </div>
       </div>
     </div>
-  
-      <div id="status" class="status"></div>
-    </section>
-    <!-- ... rest of your main sections ... -->
+
+    <!-- 🔹 Summary + cashflows now live in the top card -->
+    <div class="grid-2" id="detail-summary-row" style="margin-top:12px; display:none;">
+      <div>
+        <div class="mini-label">
+          <span>Summary</span>
+          <span id="accountLabel" style="font-size:0.75rem;"></span>
+        </div>
+        <div id="summaryBadges" class="summary-badges"></div>
+      </div>
+      <div>
+        <div class="mini-label"><span>Cashflows / meta</span></div>
+        <div id="summaryMeta" class="summary-badges"></div>
+      </div>
+    </div>
+
+    <div id="status" class="status"></div>
+  </section>
+  <!-- ... rest of your main sections ... -->
 
            <!-- NEW TOP ROW: snapshot (left) + chart (right) -->
       <div class="top-row">
       
-        <!-- LEFT: Portfolio snapshot -->
-        <section class="card" id="summary-card" style="display:none;">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Portfolio snapshot</div>
-              <div class="card-sub">PnL, ROI and cashflow if your Worker returns a summary block.</div>
-            </div>
-          </div>
-          <div class="grid-2">
-            <div>
-              <div class="mini-label">
-                <span>Summary</span>
-                <span id="accountLabel" style="font-size:0.75rem;"></span>
-              </div>
-              <div id="summaryBadges" class="summary-badges"></div>
-            </div>
-            <div>
-              <div class="mini-label"><span>Cashflows / meta</span></div>
-              <div id="summaryMeta" class="summary-badges"></div>
-            </div>
-          </div>
-        </section>
+    <!-- LEFT: Portfolio snapshot (empty placeholder for future analytics) -->
+    <section class="card" id="summary-card" style="display:none;">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Portfolio snapshot</div>
+          <div class="card-sub">More analytics coming soon.</div>
+        </div>
+      </div>
+    </section>
 
         <!-- RIGHT: Perp PnL / balance chart -->
         <section class="card" id="chart-card" style="display:none;">
@@ -931,41 +935,48 @@
     container.appendChild(nav);
   }
 
-  function setDetailMode(isDetail) {
-    const summaryCard = document.getElementById("summary-card");
-    const tablesCard = document.getElementById("tables-card");
-    const chartCard = document.getElementById("chart-card");
-    const pnlChartCard = document.getElementById("pnl-chart-card"); // might not exist, safe
-    const heroTitle = document.getElementById("hero-title");
-    const homeSearchBar = document.getElementById("home-search-bar");
-  
-    if (isDetail) {
-      // Show detail UI
-      if (summaryCard) summaryCard.style.display = "";
-      if (tablesCard) tablesCard.style.display = "";
-      if (chartCard) chartCard.style.display = "";
-      if (pnlChartCard) pnlChartCard.style.display = "none";
-  
-      // Update title
-      if (heroTitle) heroTitle.textContent = "Account detail view";
-  
-      // Hide home search bar
-      if (homeSearchBar) homeSearchBar.style.display = "none";
-  
-    } else {
-      // Hide detail UI
-      if (summaryCard) summaryCard.style.display = "none";
-      if (tablesCard) tablesCard.style.display = "none";
-      if (chartCard) chartCard.style.display = "none";
-      if (pnlChartCard) pnlChartCard.style.display = "none";
-  
-      // Update title
-      if (heroTitle) heroTitle.textContent = "Scan a Hyperliquid account";
-  
-      // Show home search bar
-      if (homeSearchBar) homeSearchBar.style.display = "flex";
-    }
+function setDetailMode(isDetail) {
+  const summaryCard = document.getElementById("summary-card");
+  const tablesCard = document.getElementById("tables-card");
+  const chartCard = document.getElementById("chart-card");
+  const pnlChartCard = document.getElementById("pnl-chart-card"); // might not exist, safe
+  const heroTitle = document.getElementById("hero-title");
+  const homeSearchBar = document.getElementById("home-search-bar");
+  const detailSummaryRow = document.getElementById("detail-summary-row"); // 🔹 new
+
+  if (isDetail) {
+    // Show detail UI
+    if (summaryCard) summaryCard.style.display = "";
+    if (tablesCard) tablesCard.style.display = "";
+    if (chartCard) chartCard.style.display = "";
+    if (pnlChartCard) pnlChartCard.style.display = "none";
+
+    // Update title
+    if (heroTitle) heroTitle.textContent = "Account detail view";
+
+    // Hide home search bar
+    if (homeSearchBar) homeSearchBar.style.display = "none";
+
+    // 🔹 Show summary/cashflow row in the top card
+    if (detailSummaryRow) detailSummaryRow.style.display = "grid";
+
+  } else {
+    // Hide detail UI
+    if (summaryCard) summaryCard.style.display = "none";
+    if (tablesCard) tablesCard.style.display = "none";
+    if (chartCard) chartCard.style.display = "none";
+    if (pnlChartCard) pnlChartCard.style.display = "none";
+
+    // Update title
+    if (heroTitle) heroTitle.textContent = "Scan a Hyperliquid account";
+
+    // Show home search bar
+    if (homeSearchBar) homeSearchBar.style.display = "flex";
+
+    // 🔹 Hide summary/cashflow row again on home
+    if (detailSummaryRow) detailSummaryRow.style.display = "none";
   }
+}
 
   function switchTab(tab) {
     activeTab = tab;
