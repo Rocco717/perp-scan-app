@@ -155,45 +155,6 @@
       font-size: 0.78rem;
       color: var(--muted);
     }
-    .hero-sub {
-      margin-top: 6px;
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-    .hero-highlight {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 8px;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.7);               /* dark pill */
-      border: 1px solid var(--border);           /* subtle dark border */
-      font-size: 0.74rem;
-      margin-top: 8px;
-      color: var(--text);                        /* white text */
-    }
-    .hero-highlight-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: var(--success);
-      box-shadow: none;
-    }
-    .form-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.1fr) auto;
-      gap: 10px;
-      align-items: end;
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 0.8rem;
-    }
-    .field label {
-      color: var(--muted);
-    }
     input, select {
       border-radius: 999px;
       border: 1px solid var(--border);
@@ -370,12 +331,6 @@
 
     summary { cursor: pointer; user-select: none; }
 
-    .home-only-text {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-top: 4px;
-    }
-
     /* ---------- TABLE TABS (match range buttons) ---------- */
 
     /* INACTIVE tab (same as inactive range button) */
@@ -449,34 +404,12 @@
       }
   
     /* ---------- CHART CONTAINERS ---------- */
-    #equityChartContainer,
-    #pnlChartContainer {
+    #equityChartContainer {
       position: relative;
       width: 100%;
       height: 220px;
       margin-top: 8px;
-      background: transparent;              /* no darker panel */
-    }
-    .chart-toggle {
-      display: inline-flex;
-      gap: 6px;
-      padding: 4px;
-      border-radius: 999px;
-      background: #050505;
-      border: 1px solid var(--border);
-    }
-    .chart-toggle-btn {
-      border-radius: 999px;
-      border: none;
-      background: transparent;
-      padding: 4px 10px;
-      font-size: 0.78rem;
-      color: var(--muted);
-      cursor: pointer;
-    }
-    .chart-toggle-btn.chart-toggle-btn-active {
-      background: #22c55e;
-      color: #022c22;
+      background: transparent; /* no darker panel */
     }
 
     /* Top row: Portfolio snapshot (left) + Perp chart (right) */
