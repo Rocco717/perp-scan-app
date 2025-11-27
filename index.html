@@ -424,6 +424,24 @@
       background: #ffffff10;     /* subtle white tint */
       color: #ffffff;            /* white text */
     }
+
+    .chart-header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .chart-live-value {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .chart-live-positive {
+      color: var(--success);
+    }
+    .chart-live-negative {
+      color: var(--danger);
+    }
   
     /* ---------- CHART CONTAINERS ---------- */
     #equityChartContainer,
@@ -566,13 +584,21 @@
               </div>
             </div>
       
-            <!-- Range buttons -->
-            <div class="range-row">
-              <button type="button" class="range-btn range-btn-active" data-range="all">All</button>
-              <button type="button" class="range-btn" data-range="90d">90D</button>
-              <button type="button" class="range-btn" data-range="30d">30D</button>
-              <button type="button" class="range-btn" data-range="7d">7D</button>
-              <button type="button" class="range-btn" data-range="1d">1D</button>
+            <!-- Right side: live value + range buttons -->
+            <div class="chart-header-right">
+            
+              <!-- Live last-value display -->
+              <div id="chart-live-value" class="chart-live-value"></div>
+            
+              <!-- Range buttons -->
+              <div class="range-row">
+                <button type="button" class="range-btn range-btn-active" data-range="all">All</button>
+                <button type="button" class="range-btn" data-range="90d">90D</button>
+                <button type="button" class="range-btn" data-range="30d">30D</button>
+                <button type="button" class="range-btn" data-range="7d">7D</button>
+                <button type="button" class="range-btn" data-range="1d">1D</button>
+              </div>
+            
             </div>
           </div>
       
@@ -1071,7 +1097,37 @@
     const labelRange = totalSpan <= dayMs ? "1d" : range;
     const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
     const values = filtered.map(p => p.value);
-  
+    // --- Update live value label (top-right) ---
+    const liveEl = document.getElementById("chart-live-value");
+    if (liveEl) {
+      if (values.length) {
+        const lastVal = values[values.length - 1];
+    
+        // Convert range to label form
+        let rangeLabel = "All";
+        if (range === "1d") rangeLabel = "1D";
+        else if (range === "7d") rangeLabel = "7D";
+        else if (range === "30d") rangeLabel = "30D";
+        else if (range === "90d") rangeLabel = "90D";
+    
+        // Label depends on mode
+        const modeLabel =
+          activeChartMode === "pnl" ? "PnL (Perp)" : "Perp balance";
+    
+        const absText = "$" + formatNumber(Math.abs(lastVal), 2);
+        const sign = lastVal >= 0 ? "" : "-";
+    
+        liveEl.textContent = `${rangeLabel} ${modeLabel} ${sign}${absText}`;
+    
+        liveEl.classList.remove("chart-live-positive", "chart-live-negative");
+        if (lastVal > 0) liveEl.classList.add("chart-live-positive");
+        else if (lastVal < 0) liveEl.classList.add("chart-live-negative");
+      } else {
+        liveEl.textContent = "";
+        liveEl.classList.remove("chart-live-positive", "chart-live-negative");
+      }
+    }
+      
     // Decide line color based on performance (up = green, down = red)
     let lineColor, fillColor;
     if (values.length >= 2) {
