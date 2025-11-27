@@ -434,7 +434,11 @@
     .chart-live-value {
       font-size: 0.82rem;
       font-weight: 500;
-      color: var(--text);
+      color: var(--muted);          /* grey, like axis labels */
+    }
+    /* span that wraps JUST the number */
+    .chart-live-number {
+      margin-left: 4px;
     }
     .chart-live-positive {
       color: var(--success);
@@ -1099,28 +1103,31 @@
       if (values.length) {
         const lastVal = values[values.length - 1];
     
-        // Convert range to label form
+        // Range label: All / 1D / 7D / 30D / 90D
         let rangeLabel = "All";
         if (range === "1d") rangeLabel = "1D";
         else if (range === "7d") rangeLabel = "7D";
         else if (range === "30d") rangeLabel = "30D";
         else if (range === "90d") rangeLabel = "90D";
     
-        // Label depends on mode
+        // Text label depends on mode
         const modeLabel =
           activeChartMode === "pnl" ? "PnL (Perp)" : "Perp balance";
     
         const absText = "$" + formatNumber(Math.abs(lastVal), 2);
         const sign = lastVal >= 0 ? "" : "-";
     
-        liveEl.textContent = `${rangeLabel} ${modeLabel} ${sign}${absText}`;
+        const numberClass =
+          lastVal > 0 ? "chart-live-positive"
+          : lastVal < 0 ? "chart-live-negative"
+          : "";
     
-        liveEl.classList.remove("chart-live-positive", "chart-live-negative");
-        if (lastVal > 0) liveEl.classList.add("chart-live-positive");
-        else if (lastVal < 0) liveEl.classList.add("chart-live-negative");
+        // Use HTML so only the number is colored
+        liveEl.innerHTML =
+          `${rangeLabel} ${modeLabel} ` +
+          `<span class="chart-live-number ${numberClass}">${sign}${absText}</span>`;
       } else {
         liveEl.textContent = "";
-        liveEl.classList.remove("chart-live-positive", "chart-live-negative");
       }
     }
       
