@@ -867,14 +867,13 @@ function setDetailMode(isDetail) {
   const chartCard = document.getElementById("chart-card");
   const heroTitle = document.getElementById("hero-title");
   const homeSearchBar = document.getElementById("home-search-bar");
-  const detailSummaryRow = document.getElementById("detail-summary-row"); // 🔹 new
+  const detailSummaryRow = document.getElementById("detail-summary-row");
 
   if (isDetail) {
     // Show detail UI
     if (summaryCard) summaryCard.style.display = "";
     if (tablesCard) tablesCard.style.display = "";
     if (chartCard) chartCard.style.display = "";
-    if (pnlChartCard) pnlChartCard.style.display = "none";
 
     // Update title
     if (heroTitle) heroTitle.textContent = "Account detail view";
@@ -882,7 +881,7 @@ function setDetailMode(isDetail) {
     // Hide home search bar
     if (homeSearchBar) homeSearchBar.style.display = "none";
 
-    // 🔹 Show summary/cashflow row in the top card
+    // Show summary/cashflow row in the top card
     if (detailSummaryRow) detailSummaryRow.style.display = "grid";
 
   } else {
@@ -890,7 +889,6 @@ function setDetailMode(isDetail) {
     if (summaryCard) summaryCard.style.display = "none";
     if (tablesCard) tablesCard.style.display = "none";
     if (chartCard) chartCard.style.display = "none";
-    if (pnlChartCard) pnlChartCard.style.display = "none";
 
     // Update title
     if (heroTitle) heroTitle.textContent = "Scan a Hyperliquid account";
@@ -898,7 +896,7 @@ function setDetailMode(isDetail) {
     // Show home search bar
     if (homeSearchBar) homeSearchBar.style.display = "flex";
 
-    // 🔹 Hide summary/cashflow row again on home
+    // Hide summary/cashflow row again on home
     if (detailSummaryRow) detailSummaryRow.style.display = "none";
   }
 }
