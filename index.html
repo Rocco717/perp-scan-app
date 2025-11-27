@@ -563,8 +563,8 @@
         <!-- RIGHT: Perp PnL / balance chart -->
         <section class="card" id="chart-card" style="display:none;">
           <div class="card-header">
+            <!-- LEFT SIDE -->
             <div>
-              <!-- Chart mode toggle -->
               <div class="tabs-row" id="chart-mode-tabs">
                 <button type="button"
                         class="tab-pill tab-pill-active"
@@ -583,11 +583,9 @@
                 Realized + funding PnL for this window.
               </div>
             </div>
-      
-            <!-- Right side: range buttons + live value -->
+        
+            <!-- RIGHT SIDE -->
             <div class="chart-header-right">
-            
-              <!-- Range buttons -->
               <div class="range-row">
                 <button type="button" class="range-btn range-btn-active" data-range="all">All</button>
                 <button type="button" class="range-btn" data-range="90d">90D</button>
@@ -595,12 +593,11 @@
                 <button type="button" class="range-btn" data-range="7d">7D</button>
                 <button type="button" class="range-btn" data-range="1d">1D</button>
               </div>
-            
-              <!-- Live last-value display -->
+        
               <div id="chart-live-value" class="chart-live-value"></div>
-            
             </div>
-      
+          </div>
+        
           <div id="equityChartContainer">
             <canvas id="equityChart"></canvas>
           </div>
