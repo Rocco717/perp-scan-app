@@ -731,15 +731,25 @@ function buildTable(container, rows, opts = {}) {
     return true;
   });
 
-  // 🔹 For positions: ensure "value" is right after "side" and duration at the end
+  // 🔹 Column ordering tweaks for positions
   if (isPositions) {
+    // Ensure value comes right after side
+    const idxSide = keys.indexOf("side");
+    const idxValue = keys.indexOf("value");
+    if (idxSide !== -1 && idxValue !== -1 && idxValue !== idxSide + 1) {
+      keys.splice(idxValue, 1);
+      keys.splice(idxSide + 1, 0, "value");
+    }
+
+    // Ensure entryTs comes before duration
     const idxEntry = keys.indexOf("entryTs");
-    const idxDur   = keys.indexOf("durationMs");
+    const idxDur = keys.indexOf("durationMs");
     if (idxEntry !== -1 && idxDur !== -1 && idxEntry > idxDur) {
       keys.splice(idxEntry, 1);
       keys.splice(idxDur, 0, "entryTs");
     }
 
+    // Put duration at the end
     const idxDuration = keys.indexOf("durationMs");
     if (idxDuration !== -1) {
       keys.splice(idxDuration, 1);
@@ -799,13 +809,12 @@ function buildTable(container, rows, opts = {}) {
           : `<div>${main}</div>`;
 
       } else if (typeof v === "number") {
-
-        // 🔹 Entry date formatting
+        // 🔹 Entry date formatting (positions)
         if (isPositions && k === "entryTs") {
           td.textContent = formatDateTime(v);
 
         // 🔹 Duration (both open + closed)
-        if (k === "durationMs") {
+        } else if (k === "durationMs") {
           td.textContent = humanizeDuration(v);
 
         // 🔹 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
