@@ -669,6 +669,24 @@ function buildTable(container, rows, opts = {}) {
 
   const isPositions = opts.type === "positions";
   const isClosed = opts.type === "closed";
+  const nowMs = typeof opts.nowMs === "number" ? opts.nowMs : Date.now();
+
+  // 🔹 For positions, compute durationMs from entryTs if not present
+  if (isPositions) {
+    rows = rows.map((row) => {
+      if (!row || typeof row !== "object") return row;
+      const r = { ...row };
+
+      if (typeof r.durationMs !== "number" && typeof r.entryTs === "number") {
+        const ageMs = nowMs - r.entryTs;
+        if (Number.isFinite(ageMs) && ageMs > 0) {
+          r.durationMs = ageMs;
+        }
+      }
+
+      return r;
+    });
+  }
 
   const displayNames = isPositions
     ? {
@@ -678,6 +696,7 @@ function buildTable(container, rows, opts = {}) {
         entryPx: "Entry Price",
         markPx: "Current Price",
         unrealizedPnl: "Unrealized PnL",
+        durationMs: "Duration",
       }
     : isClosed
     ? {
@@ -697,8 +716,8 @@ function buildTable(container, rows, opts = {}) {
         "unrealizedPct",
         "roiPct",
         "roePct",
-        "leverage", // hidden: we inline it into Direction
-        "size",     // hidden: we inline it under Position Value
+        "leverage", // inline into Direction
+        "size",     // inline under Position Value
       ])
     : isClosed
     ? new Set(["endTs"])
@@ -711,13 +730,19 @@ function buildTable(container, rows, opts = {}) {
     return true;
   });
 
-  // 🔹 For positions: ensure "value" (Position Value) is right after "side" (Direction)
+  // 🔹 For positions: ensure "value" is right after "side" and duration at the end
   if (isPositions) {
     const idxSide = keys.indexOf("side");
     const idxValue = keys.indexOf("value");
     if (idxSide !== -1 && idxValue !== -1 && idxValue !== idxSide + 1) {
       keys.splice(idxValue, 1);
       keys.splice(idxSide + 1, 0, "value");
+    }
+
+    const idxDuration = keys.indexOf("durationMs");
+    if (idxDuration !== -1) {
+      keys.splice(idxDuration, 1);
+      keys.push("durationMs");
     }
   }
 
@@ -745,13 +770,13 @@ function buildTable(container, rows, opts = {}) {
       const td = document.createElement("td");
       let v = r[k];
 
-      // 🔹 Special case: Direction column for positions → "Long - 5x"
+      // 🔹 Direction (positions): "Long - 5x"
       if (isPositions && k === "side") {
         const sideText = v == null ? "" : String(v);
         const lev = typeof r.leverage === "number" ? r.leverage : null;
         td.textContent = lev ? `${sideText} - ${lev}x` : sideText;
 
-      // 🔹 Special case: Position Value cell with size underneath
+      // 🔹 Position Value cell: main value + size underneath
       } else if (isPositions && k === "value") {
         const main =
           typeof v === "number"
@@ -773,11 +798,12 @@ function buildTable(container, rows, opts = {}) {
           : `<div>${main}</div>`;
 
       } else if (typeof v === "number") {
-        // 🎯 Human format for duration
-        if (k === "durationMs" && isClosed) {
+
+        // 🔹 Duration (both open + closed)
+        if (k === "durationMs") {
           td.textContent = humanizeDuration(v);
 
-        // 🎯 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
+        // 🔹 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
         } else if (k === "unrealizedPnl") {
           const sign = v >= 0 ? "" : "-";
           const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
@@ -794,7 +820,7 @@ function buildTable(container, rows, opts = {}) {
           if (v > 0) td.style.color = "var(--success)";
           if (v < 0) td.style.color = "var(--danger)";
 
-        // 🎯 All other numbers (entryPx, markPx, etc.)
+        // 🔹 All other numeric fields
         } else {
           const decimals =
             k === "entryPx" || k === "markPx" ? 4 : 2;
@@ -1298,7 +1324,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     encodeURIComponent(account) +
     "&period=" +
     encodeURIComponent(period) +
-    (updateTables ? "&positions=1&closed=1" : "&positions=0&closed=0");
+    (updateTables ? "&positions=1&closed=1&entry=1" : "&positions=0&closed=0");
 
   statusEl.textContent = "Fetching from " + url + " …";
   statusEl.className = "status";
@@ -1434,17 +1460,23 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     }
 
     if (updateTables) {
-      const positions = data.positions || data.openPositions || data.open || [];
-      const closed = data.closed || data.closedTrades || data.trades || [];
-
-      const positionsContainer = document.getElementById("positionsTableContainer");
-      const closedContainer = document.getElementById("closedTableContainer");
-      const cashContainer = document.getElementById("cashTableContainer");
-      
-      // Build tables
-      buildTable(positionsContainer, positions, { type: "positions" });
-      buildTable(closedContainer, closed, { type: "closed" });
-      
+    const positions = data.positions || data.openPositions || data.open || [];
+    const closed = data.closed || data.closedTrades || data.trades || [];
+    
+    const positionsContainer = document.getElementById("positionsTableContainer");
+    const closedContainer = document.getElementById("closedTableContainer");
+    const cashContainer = document.getElementById("cashTableContainer");
+    
+    // Use backend "now" if available, else browser clock
+    const nowMs =
+      typeof data.debugWindow?.endMs === "number"
+        ? data.debugWindow.endMs
+        : Date.now();
+    
+    // Build tables
+    buildTable(positionsContainer, positions, { type: "positions", nowMs });
+    buildTable(closedContainer, closed, { type: "closed" });
+          
       // Filter funding events once
       fundingEventsAll = (data.fundingEvents || [])
         .filter(ev => ev.kind === "perpTransfer")
