@@ -650,13 +650,12 @@
     if (!ts && ts !== 0) return "";
     const d = new Date(ts);
     return d.toLocaleString("en-GB", {
-      year: "numeric",
-      month: "2-digit",
       day: "2-digit",
+      month: "short",   // "Nov"
       hour: "2-digit",
       minute: "2-digit",
-      second: "2-digit",
-    });
+      hourCycle: "h23", // 24h clock
+    }).replace(",", ""); // remove comma between date + time
   }
 
 function buildTable(container, rows, opts = {}) {
