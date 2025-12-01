@@ -980,12 +980,17 @@ function buildTable(container, rows, opts = {}) {
           if (v > 0) td.style.color = "var(--success)";
           if (v < 0) td.style.color = "var(--danger)";
 
-        // 🔹 All other numeric fields
-        } else {
-          const decimals =
-            k === "entryPx" || k === "markPx" ? 4 : 2;
-          td.textContent = formatNumber(v, decimals);
-        }
+          // 🔹 All other numeric fields
+          } else {
+            if (k === "entryPx" || k === "markPx") {
+              // Use unified token price formatting for position entry/current price
+              const pxText = formatTokenPrice(v);
+              td.textContent = pxText || "";
+            } else {
+              // Default numeric formatting for everything else
+              td.textContent = formatNumber(v, 2);
+            }
+          }
 
       } else {
         td.textContent = v == null ? "" : String(v);
@@ -1086,78 +1091,76 @@ function buildTable(container, rows, opts = {}) {
     container.appendChild(nav);
   }
 
-function renderOpenOrders(openOrders) {
-  const container = document.getElementById("ordersTableContainer");
-  const countSpan = document.getElementById("ordersCount");
-  if (!container || !countSpan) return;
-
-  if (!openOrders || openOrders.error) {
-    container.innerHTML = `
-      <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
-        No open orders.
-      </div>`;
-    countSpan.textContent = "(0)";
-    return;
-  }
-
-  const list = Array.isArray(openOrders) ? openOrders : [];
-  countSpan.textContent = `(${list.length})`;
-
-  if (list.length === 0) {
-    container.innerHTML = `
-      <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
-        No open orders yet.
-      </div>`;
-    return;
-  }
-
-  let html = `
-    <table>
-      <thead>
-        <tr>
-          <th>Coin</th>
-          <th>Side</th>
-          <th>Price</th>
-          <th>Size</th>
-          <th>Notional</th>
-          <th>Order Value</th>
-          <th>Placed</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  for (const o of list) {
-    const side =
-      o.side === "b" ? "Buy" :
-      o.side === "a" ? "Sell" :
-      (o.side || "-").toString().toUpperCase();
-
-    const rawPx = o.px ?? o.price;
-    const px    = Number(rawPx);
-    const sz    = Number(o.sz);
-    const notional = Number.isFinite(px) && Number.isFinite(sz) ? px * sz : null;
-
-    const ts = o.ts ? formatDateTime(o.ts) : "-";
-
-    const pxDisplay = formatTokenPrice(rawPx);
-
-    html += `
-      <tr>
-        <td>${o.coin ?? "-"}</td>
-        <td>${side}</td>
-        <td>${pxDisplay || "-"}</td>
-        <td>${Number.isFinite(sz) ? sz.toFixed(2) : "-"}</td>
-        <td>${Number.isFinite(notional) ? notional.toFixed(2) : "-"}</td>
-        <td>${Number.isFinite(notional) ? "$" + formatNumber(notional, 2) : "-"}</td>
-        <td>${ts}</td>
-      </tr>
-    `;
-  }
-
-  html += "</tbody></table>";
-  container.innerHTML = html;
-}
+    function renderOpenOrders(openOrders) {
+      const container = document.getElementById("ordersTableContainer");
+      const countSpan = document.getElementById("ordersCount");
+      if (!container || !countSpan) return;
+    
+      if (!openOrders || openOrders.error) {
+        container.innerHTML = `
+          <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
+            No open orders.
+          </div>`;
+        countSpan.textContent = "(0)";
+        return;
+      }
+    
+      const list = Array.isArray(openOrders) ? openOrders : [];
+      countSpan.textContent = `(${list.length})`;
+    
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
+            No open orders yet.
+          </div>`;
+        return;
+      }
+    
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th>Coin</th>
+              <th>Side</th>
+              <th>Price</th>
+              <th>Size</th>
+              <th>Order Value</th>
+              <th>Placed</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+    
+      for (const o of list) {
+        const side =
+          o.side === "b" ? "Buy" :
+          o.side === "a" ? "Sell" :
+          (o.side || "-").toString().toUpperCase();
+    
+        const rawPx = o.px ?? o.price;
+        const px    = Number(rawPx);
+        const sz    = Number(o.sz);
+        const notional = Number.isFinite(px) && Number.isFinite(sz) ? px * sz : null;
+    
+        const ts = o.ts ? formatDateTime(o.ts) : "-";
+    
+        const pxDisplay = formatTokenPrice(rawPx);
+    
+        html += `
+          <tr>
+            <td>${o.coin ?? "-"}</td>
+            <td>${side}</td>
+            <td>${pxDisplay || "-"}</td>
+            <td>${Number.isFinite(sz) ? sz.toFixed(2) : "-"}</td>
+            <td>${Number.isFinite(notional) ? "$" + formatNumber(notional, 2) : "-"}</td>
+            <td>${ts}</td>
+          </tr>
+        `;
+      }
+    
+      html += "</tbody></table>";
+      container.innerHTML = html;
+    }
 
 function setDetailMode(isDetail) {
   const summaryCard = document.getElementById("summary-card");
