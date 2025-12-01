@@ -1711,14 +1711,6 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     } else {
       metaBadges.forEach(b => summaryMeta.appendChild(b));
     }
-
-    if (updateTables) {
-    const positions = data.positions || data.openPositions || data.open || [];
-    const closed = data.closed || data.closedTrades || data.trades || [];
-    
-    const positionsContainer = document.getElementById("positionsTableContainer");
-    const closedContainer = document.getElementById("closedTableContainer");
-    const cashContainer = document.getElementById("cashTableContainer");
     
     // Use backend "now" if available, else browser clock
     if (updateTables) {
@@ -1729,7 +1721,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       const closedContainer    = document.getElementById("closedTableContainer");
       const cashContainer      = document.getElementById("cashTableContainer");
 
-      // 🔹 Prefer frontendOpenOrders if present, then openOrders, then orders
+      // Prefer frontendOpenOrders if present, then openOrders, then orders
       const openOrders =
         data.frontendOpenOrders || data.openOrders || data.orders || [];
 
@@ -1738,25 +1730,25 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         typeof data.debugWindow?.endMs === "number"
           ? data.debugWindow.endMs
           : Date.now();
-      
-      // 🔹 Open orders
-      const openOrders = data.openOrders || data.orders || [];
-      
-      // 🔹 Build TP/SL coverage map per coin
+
+      // Build TP/SL coverage map per coin
       const slTpByCoin = buildSlTpByCoin(positions, openOrders);
-      
-      // 🔹 Build tables (positions gets slTpByCoin)
+
+      // Build tables (positions gets slTpByCoin)
       buildTable(positionsContainer, positions, {
         type: "positions",
         nowMs,
         slTpByCoin,
       });
-      buildTable(closedContainer, closed, { type: "closed", nowMs });
-      
-      // 🔹 Render Open Orders tab
+      buildTable(closedContainer, closed, {
+        type: "closed",
+        nowMs,
+      });
+
+      // Open orders tab
       renderOpenOrders(openOrders);
 
-      // 🔹 Filter funding events once
+      // Funding events
       fundingEventsAll = (data.fundingEvents || [])
         .filter(ev => ev.kind === "perpTransfer")
         .sort((a, b) => b.time - a.time); // newest first
@@ -1764,19 +1756,10 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       fundingPage = 0;
       renderFundingTable(cashContainer);
 
-      // 🔹 Update tab counts
+      // Tab counts
       document.getElementById("positionsCount").textContent = `(${positions.length})`;
       document.getElementById("closedCount").textContent    = `(${closed.length})`;
       document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
-    }
-      
-      fundingPage = 0;
-      renderFundingTable(cashContainer);
-      
-      // Update tab counts
-      document.getElementById("positionsCount").textContent = `(${positions.length})`;
-      document.getElementById("closedCount").textContent = `(${closed.length})`;
-      document.getElementById("cashCount").textContent = `(${fundingEventsAll.length})`;
     }
 
     // --- Perp balance series ---
