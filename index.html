@@ -623,26 +623,34 @@
     return n.toLocaleString(undefined, opts);
   }
 
-    // 🔹 Unified token price formatter: dynamic decimals by magnitude
-  function formatTokenPrice(raw) {
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n === 0) return "";
-
-    const abs = Math.abs(n);
-    let decimals;
-
-    if (abs >= 1) {
-      decimals = 3;        // e.g. 1.000, 60.125
-    } else if (abs >= 0.1) {
-      decimals = 4;
-    } else if (abs >= 0.01) {
-      decimals = 5;
-    } else {
-      decimals = 6;        // tiny coins like PUMP
+    function formatTokenPrice(raw) {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n === 0) return "";
+    
+      const abs = Math.abs(n);
+      const intPart = Math.floor(abs);
+    
+      let decimals;
+    
+      // --- HIGH PRICE ASSETS (≥10) → FIXED 2 DECIMALS ---
+      if (intPart >= 10) {
+        decimals = 2;
+    
+      // --- MID RANGE (1–9.9) → 3 DECIMALS ---
+      } else if (abs >= 1) {
+        decimals = 3;
+    
+      // --- SMALL TOKENS (<1) → more precision ---
+      } else if (abs >= 0.1) {
+        decimals = 4;
+      } else if (abs >= 0.01) {
+        decimals = 5;
+      } else {
+        decimals = 6;
+      }
+    
+      return n.toFixed(decimals);
     }
-
-    return n.toFixed(decimals);
-  }
 
   function createBadge(label, value, options = {}) {
     if (value === null || value === undefined || value === "") return null;
