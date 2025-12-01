@@ -749,7 +749,7 @@ function buildTable(container, rows, opts = {}) {
         coin: "Asset",
         side: "Direction",
         value: "Position Value / Size",
-        fullTpSl: "TP/SL",
+        fullTpSl: "TP/SL price",
         entryPx: "Entry Price",
         markPx: "Current Price",
         unrealizedPnl: "Unrealized PnL",
@@ -846,7 +846,7 @@ function buildTable(container, rows, opts = {}) {
       const td = document.createElement("td");
       let v = r[k];
 
-    // NEW: Full TP/SL detection
+    // NEW: Single full-exit TP/SL price only
     if (isPositions && k === "fullTpSl") {
       const entry = opts.slTpByCoin?.[r.coin];
       let text = "";
@@ -854,31 +854,38 @@ function buildTable(container, rows, opts = {}) {
       if (entry) {
         const posSize = Math.abs(Number(r.size));
     
-        // sum TP sizes (supports sz or size, ignores junk)
-        const tpSize = entry.tps.reduce((sum, o) => {
-          const raw = o.sz ?? o.size;
-          const n = Number(raw);
-          return Number.isFinite(n) ? sum + Math.abs(n) : sum;
-        }, 0);
-    
-        // sum SL sizes
-        const slSize = entry.sls.reduce((sum, o) => {
-          const raw = o.sz ?? o.size;
-          const n = Number(raw);
-          return Number.isFinite(n) ? sum + Math.abs(n) : sum;
-        }, 0);
-    
         if (Number.isFinite(posSize) && posSize > 0) {
-          const fullTp = tpSize >= posSize * 0.95;
-          const fullSl = slSize >= posSize * 0.95;
+          // "Full" = one order that closes basically 100% of the position.
+          // If you want tolerance, change threshold to posSize * 0.95 etc.
+          const threshold = posSize;
     
-          if (fullTp && fullSl) {
-            text = "Full TP + SL";
-          } else if (fullTp) {
-            text = "Full TP";
-          } else if (fullSl) {
-            text = "Full SL";
-          }
+          const getOrderSize = (o) => {
+            const raw = o.sz ?? o.size;
+            const n = Number(raw);
+            return Number.isFinite(n) ? Math.abs(n) : 0;
+          };
+    
+          // Only keep orders that individually qualify as a "full exit"
+          const qualifyingTps = entry.tps.filter((o) => getOrderSize(o) >= threshold);
+          const qualifyingSls = entry.sls.filter((o) => getOrderSize(o) >= threshold);
+    
+          // We only want exactly ONE full TP or SL on each side
+          const tpOrder = qualifyingTps.length === 1 ? qualifyingTps[0] : null;
+          const slOrder = qualifyingSls.length === 1 ? qualifyingSls[0] : null;
+    
+          const formatPx = (o) => {
+            const rawPx = o.triggerPx ?? o.px ?? o.price;
+            const n = Number(rawPx);
+            if (!Number.isFinite(n)) return "";
+            // Match your open orders table style
+            return n.toPrecision(6);
+          };
+    
+          const parts = [];
+          if (tpOrder) parts.push(`TP ${formatPx(tpOrder)}`);
+          if (slOrder) parts.push(`SL ${formatPx(slOrder)}`);
+    
+          text = parts.join(" | ");
         }
       }
     
