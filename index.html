@@ -667,6 +667,117 @@
     }).replace(",", ""); // remove comma between date + time
   }
 
+  function getPositionAbsSize(pos) {
+  if (!pos) return null;
+  const s1 = Number(pos.size);
+  const s2 = Number(pos.sz);
+  if (Number.isFinite(s1) && s1 !== 0) return Math.abs(s1);
+  if (Number.isFinite(s2) && s2 !== 0) return Math.abs(s2);
+  return null;
+}
+
+function getOrderAbsSize(order) {
+  if (!order) return 0;
+  const s1 = Number(order.sz);
+  const s2 = Number(order.size);
+  if (Number.isFinite(s1) && s1 !== 0) return Math.abs(s1);
+  if (Number.isFinite(s2) && s2 !== 0) return Math.abs(s2);
+  return 0;
+}
+
+  function buildSlTpByCoin(positions, openOrders) {
+  const posByCoin = {};
+  (positions || []).forEach((p) => {
+    if (!p || !p.coin) return;
+    posByCoin[String(p.coin)] = p;
+  });
+
+  // Exit-type orders only (reduce-only or position TP/SL)
+  const exits = (openOrders || []).filter((o) => {
+    if (!o) return false;
+    if (o.reduceOnly === true) return true;
+    if (o.isPositionTpsl === true) return true;
+    return false;
+  });
+
+  function getOrderPx(o) {
+    if (!o) return null;
+    if (o.isTrigger && o.triggerPx != null) return Number(o.triggerPx);
+    if (o.px != null) return Number(o.px);
+    if (o.price != null) return Number(o.price);
+    return null;
+  }
+
+  function classifyExit(order, pos) {
+    const px   = getOrderPx(order);
+    const mark =
+      (pos && (pos.markPx ?? pos.indexPx ?? pos.entryPx)) != null
+        ? Number(pos.markPx ?? pos.indexPx ?? pos.entryPx)
+        : null;
+
+    if (!Number.isFinite(px) || !Number.isFinite(mark)) return "UNKNOWN";
+
+    const side = String(pos.side || "").toLowerCase();
+    const isLong = side === "long";
+
+    const ordSide = String(order.side || "").toLowerCase();
+    const isSellOrder = ordSide === "sell" || ordSide === "ask" || ordSide === "a";
+    const isBuyOrder  = ordSide === "buy"  || ordSide === "bid" || ordSide === "b";
+
+    if (isLong) {
+      if (isSellOrder && px > mark) return "TP";
+      if (isSellOrder && px < mark) return "SL";
+    } else {
+      // short
+      if (isBuyOrder && px > mark) return "SL";
+      if (isBuyOrder && px < mark) return "TP";
+    }
+    return "UNKNOWN";
+  }
+
+  const slTpByCoin = {};
+
+  exits.forEach((o) => {
+    const coin = o.coin ? String(o.coin) : null;
+    if (!coin) return;
+
+    const pos = posByCoin[coin];
+    if (!pos) return; // no live position → ignore
+
+    const kind = classifyExit(o, pos);
+    if (kind === "UNKNOWN") return;
+
+    const px = getOrderPx(o);
+    const mark =
+      (pos && (pos.markPx ?? pos.indexPx ?? pos.entryPx)) != null
+        ? Number(pos.markPx ?? pos.indexPx ?? pos.entryPx)
+        : null;
+
+    const distPct = Number.isFinite(px) && Number.isFinite(mark)
+      ? ((px - mark) / mark) * 100
+      : null;
+
+    if (!slTpByCoin[coin]) {
+      slTpByCoin[coin] = { position: pos, tps: [], sls: [] };
+    }
+
+    const bucket = kind === "TP" ? slTpByCoin[coin].tps
+                 : kind === "SL" ? slTpByCoin[coin].sls
+                 : null;
+
+    if (bucket) {
+      bucket.push({
+        ...o,
+        px,
+        distPct,
+        kind,
+      });
+    }
+  });
+
+  return slTpByCoin;
+}
+
 function buildTable(container, rows, opts = {}) {
   container.innerHTML = "";
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -826,21 +937,66 @@ function buildTable(container, rows, opts = {}) {
           td.textContent = humanizeDuration(v);
 
         // 🔹 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
-        } else if (k === "unrealizedPnl") {
-          const sign = v >= 0 ? "" : "-";
-          const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
+      } else if (k === "unrealizedPnl") {
+        const sign = v >= 0 ? "" : "-";
+        const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
 
-          const roe = typeof r.roePct === "number" ? r.roePct : null;
-          let roeText = "";
-          if (roe !== null) {
-            const pctSign = roe >= 0 ? "" : "-";
-            roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
+        const roe = typeof r.roePct === "number" ? r.roePct : null;
+        let roeText = "";
+        if (roe !== null) {
+          const pctSign = roe >= 0 ? "" : "-";
+          roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
+        }
+
+        // main PnL line
+        const main = baseText + roeText;
+
+        // 🔹 Extra line ONLY if we have full TP/SL coverage
+        let fullLabel = "";
+
+        if (isPositions && opts.slTpByCoin && r.coin) {
+          const entry = opts.slTpByCoin[r.coin];
+          if (entry) {
+            // prefer backend position stored in slTp map if present
+            const posSize = getPositionAbsSize(entry.position || r);
+            if (posSize && posSize > 0) {
+              const tpSize = entry.tps.reduce(
+                (sum, o) => sum + getOrderAbsSize(o),
+                0
+              );
+              const slSize = entry.sls.reduce(
+                (sum, o) => sum + getOrderAbsSize(o),
+                0
+              );
+
+              // use a tiny tolerance for rounding
+              const threshold = posSize * 0.99;
+              const tpFull = tpSize >= threshold;
+              const slFull = slSize >= threshold;
+
+              if (tpFull && slFull) {
+                fullLabel = "Full TP & SL";
+              } else if (tpFull) {
+                fullLabel = "Full TP";
+              } else if (slFull) {
+                fullLabel = "Full SL";
+              }
+            }
           }
+        }
 
-          td.textContent = baseText + roeText;
+        if (fullLabel) {
+          td.innerHTML =
+            `<div>${main}</div>` +
+            `<div style="font-size:0.78rem; color: var(--muted); margin-top:2px;">${fullLabel}</div>`;
+        } else {
+          // no full coverage → just show PnL line
+          td.textContent = main;
+        }
 
-          if (v > 0) td.style.color = "var(--success)";
-          if (v < 0) td.style.color = "var(--danger)";
+        if (v > 0) td.style.color = "var(--success)";
+        if (v < 0) td.style.color = "var(--danger)";
+
 
         // 🔹 All other numeric fields
         } else {
@@ -1559,22 +1715,54 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const cashContainer = document.getElementById("cashTableContainer");
     
     // Use backend "now" if available, else browser clock
-    const nowMs =
-      typeof data.debugWindow?.endMs === "number"
-        ? data.debugWindow.endMs
-        : Date.now();
-    
-    // Build tables
-    buildTable(positionsContainer, positions, { type: "positions", nowMs });
-    buildTable(closedContainer, closed, { type: "closed" });
+    if (updateTables) {
+      const positions = data.positions || data.openPositions || data.open || [];
+      const closed    = data.closed    || data.closedTrades || data.trades || [];
 
-      const openOrders = data.openOrders || data.orders || [];
+      const positionsContainer = document.getElementById("positionsTableContainer");
+      const closedContainer    = document.getElementById("closedTableContainer");
+      const cashContainer      = document.getElementById("cashTableContainer");
+
+      // 🔹 Prefer frontendOpenOrders if present, then openOrders, then orders
+      const openOrders =
+        data.frontendOpenOrders || data.openOrders || data.orders || [];
+
+      // Use backend "now" if available, else browser clock
+      const nowMs =
+        typeof data.debugWindow?.endMs === "number"
+          ? data.debugWindow.endMs
+          : Date.now();
+
+      // 🔹 Build TP/SL coverage map per coin
+      const slTpByCoin = buildSlTpByCoin(positions, openOrders);
+
+      // 🔹 Build tables (positions gets slTpByCoin)
+      buildTable(positionsContainer, positions, {
+        type: "positions",
+        nowMs,
+        slTpByCoin,
+      });
+      buildTable(closedContainer, closed, {
+        type: "closed",
+        nowMs,
+      });
+
+      // 🔹 Open orders tab
       renderOpenOrders(openOrders);
-          
-      // Filter funding events once
+
+      // 🔹 Filter funding events once
       fundingEventsAll = (data.fundingEvents || [])
         .filter(ev => ev.kind === "perpTransfer")
         .sort((a, b) => b.time - a.time); // newest first
+
+      fundingPage = 0;
+      renderFundingTable(cashContainer);
+
+      // 🔹 Update tab counts
+      document.getElementById("positionsCount").textContent = `(${positions.length})`;
+      document.getElementById("closedCount").textContent    = `(${closed.length})`;
+      document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
+    }
       
       fundingPage = 0;
       renderFundingTable(cashContainer);
