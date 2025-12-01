@@ -948,7 +948,7 @@ function buildTable(container, rows, opts = {}) {
     container.appendChild(nav);
   }
 
-  function renderOpenOrders(openOrders) {
+function renderOpenOrders(openOrders) {
   const container = document.getElementById("ordersTableContainer");
   const countSpan = document.getElementById("ordersCount");
   if (!container || !countSpan) return;
@@ -999,9 +999,6 @@ function buildTable(container, rows, opts = {}) {
     const sz  = Number(o.sz);
     const notional = Number.isFinite(px) && Number.isFinite(sz) ? px * sz : null;
 
-    const ts = o.ts
-      ? new Date(o.ts).toISOString().slice(5, 16).replace("T", " ")
-      : "-";
     const ts = o.ts ? formatDateTime(o.ts) : "-";
 
     html += `
