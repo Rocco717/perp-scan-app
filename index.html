@@ -192,12 +192,12 @@
       white-space: nowrap;
       transition: background 0.12s ease, color 0.12s ease;
     }
-    
+
     button:hover {
       background: #1a1a1a;          /* subtle brightening */
       color: #ffffff;
     }
-    
+
     button:active {
       background: #0c0c0c;
       color: #e5e5e5;
@@ -252,7 +252,7 @@
     }
     .pill-green { color: var(--success); }
     .pill-red { color: var(--danger); }
-  
+
     /* ---------- TABLES ---------- */
     table {
       width: 100%;
@@ -401,7 +401,7 @@
       .chart-live-number.chart-live-negative {
         color: var(--danger);
       }
-  
+
     /* ---------- CHART CONTAINERS ---------- */
     #equityChartContainer {
       position: relative;
@@ -418,19 +418,19 @@
       gap: 16px;
       margin-bottom: 16px;
     }
-    
+
     /* Make sure cards stretch nicely inside the row */
     .top-row .card {
       height: 100%;
     }
-    
+
     /* On smaller screens, stack vertically */
     @media (max-width: 900px) {
       .top-row {
         grid-template-columns: minmax(0, 1fr);
       }
     }
-  
+
     @media (max-width: 840px) {
       body { padding: 12px; }
       /* header { ... }  ← remove this line */
@@ -490,7 +490,7 @@
 
            <!-- NEW TOP ROW: snapshot (left) + chart (right) -->
       <div class="top-row">
-      
+
       <!-- LEFT: Empty placeholder card to preserve layout -->
       <section class="card" id="summary-card" style="display:none; padding:0; height:100%;">
       </section>
@@ -518,7 +518,7 @@
                 Realized + funding PnL for this window.
               </div>
             </div>
-        
+
             <!-- RIGHT SIDE -->
             <div class="chart-header-right">
               <div class="range-row">
@@ -528,11 +528,11 @@
                 <button type="button" class="range-btn" data-range="7d">7D</button>
                 <button type="button" class="range-btn" data-range="1d">1D</button>
               </div>
-        
+
               <div id="chart-live-value" class="chart-live-value"></div>
             </div>
           </div>
-        
+
           <div id="equityChartContainer">
             <canvas id="equityChart"></canvas>
           </div>
@@ -667,117 +667,6 @@
     }).replace(",", ""); // remove comma between date + time
   }
 
-  function getPositionAbsSize(pos) {
-  if (!pos) return null;
-  const s1 = Number(pos.size);
-  const s2 = Number(pos.sz);
-  if (Number.isFinite(s1) && s1 !== 0) return Math.abs(s1);
-  if (Number.isFinite(s2) && s2 !== 0) return Math.abs(s2);
-  return null;
-}
-
-function getOrderAbsSize(order) {
-  if (!order) return 0;
-  const s1 = Number(order.sz);
-  const s2 = Number(order.size);
-  if (Number.isFinite(s1) && s1 !== 0) return Math.abs(s1);
-  if (Number.isFinite(s2) && s2 !== 0) return Math.abs(s2);
-  return 0;
-}
-
-  function buildSlTpByCoin(positions, openOrders) {
-  const posByCoin = {};
-  (positions || []).forEach((p) => {
-    if (!p || !p.coin) return;
-    posByCoin[String(p.coin)] = p;
-  });
-
-  // Exit-type orders only (reduce-only or position TP/SL)
-  const exits = (openOrders || []).filter((o) => {
-    if (!o) return false;
-    if (o.reduceOnly === true) return true;
-    if (o.isPositionTpsl === true) return true;
-    return false;
-  });
-
-  function getOrderPx(o) {
-    if (!o) return null;
-    if (o.isTrigger && o.triggerPx != null) return Number(o.triggerPx);
-    if (o.px != null) return Number(o.px);
-    if (o.price != null) return Number(o.price);
-    return null;
-  }
-
-  function classifyExit(order, pos) {
-    const px   = getOrderPx(order);
-    const mark =
-      (pos && (pos.markPx ?? pos.indexPx ?? pos.entryPx)) != null
-        ? Number(pos.markPx ?? pos.indexPx ?? pos.entryPx)
-        : null;
-
-    if (!Number.isFinite(px) || !Number.isFinite(mark)) return "UNKNOWN";
-
-    const side = String(pos.side || "").toLowerCase();
-    const isLong = side === "long";
-
-    const ordSide = String(order.side || "").toLowerCase();
-    const isSellOrder = ordSide === "sell" || ordSide === "ask" || ordSide === "a";
-    const isBuyOrder  = ordSide === "buy"  || ordSide === "bid" || ordSide === "b";
-
-    if (isLong) {
-      if (isSellOrder && px > mark) return "TP";
-      if (isSellOrder && px < mark) return "SL";
-    } else {
-      // short
-      if (isBuyOrder && px > mark) return "SL";
-      if (isBuyOrder && px < mark) return "TP";
-    }
-    return "UNKNOWN";
-  }
-
-  const slTpByCoin = {};
-
-  exits.forEach((o) => {
-    const coin = o.coin ? String(o.coin) : null;
-    if (!coin) return;
-
-    const pos = posByCoin[coin];
-    if (!pos) return; // no live position → ignore
-
-    const kind = classifyExit(o, pos);
-    if (kind === "UNKNOWN") return;
-
-    const px = getOrderPx(o);
-    const mark =
-      (pos && (pos.markPx ?? pos.indexPx ?? pos.entryPx)) != null
-        ? Number(pos.markPx ?? pos.indexPx ?? pos.entryPx)
-        : null;
-
-    const distPct = Number.isFinite(px) && Number.isFinite(mark)
-      ? ((px - mark) / mark) * 100
-      : null;
-
-    if (!slTpByCoin[coin]) {
-      slTpByCoin[coin] = { position: pos, tps: [], sls: [] };
-    }
-
-    const bucket = kind === "TP" ? slTpByCoin[coin].tps
-                 : kind === "SL" ? slTpByCoin[coin].sls
-                 : null;
-
-    if (bucket) {
-      bucket.push({
-        ...o,
-        px,
-        distPct,
-        kind,
-      });
-    }
-  });
-
-  return slTpByCoin;
-}
-
 function buildTable(container, rows, opts = {}) {
   container.innerHTML = "";
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -789,7 +678,6 @@ function buildTable(container, rows, opts = {}) {
   const isPositions = opts.type === "positions";
   const isClosed = opts.type === "closed";
   const nowMs = typeof opts.nowMs === "number" ? opts.nowMs : Date.now();
-  const slTpByCoin = opts.slTpByCoin || null;
 
   // 🔹 For positions, compute durationMs from entryTs if not present
   if (isPositions) {
@@ -818,7 +706,6 @@ function buildTable(container, rows, opts = {}) {
         unrealizedPnl: "Unrealized PnL",
         entryTs: "Entry Date",
         durationMs: "Duration",
-        fullTpSl: "Full TP/SL",
       }
     : isClosed
     ? {
@@ -851,11 +738,6 @@ function buildTable(container, rows, opts = {}) {
     if (hidden.has(k)) return false;
     return true;
   });
-
-    // For positions: force Full TP/SL column to exist
-  if (isPositions && !keys.includes("fullTpSl")) {
-    keys.push("fullTpSl");
-  }
 
   // 🔹 Column ordering tweaks for positions
   if (isPositions) {
@@ -900,136 +782,92 @@ function buildTable(container, rows, opts = {}) {
   thead.appendChild(trHead);
   table.appendChild(thead);
 
-const tbody = document.createElement("tbody");
-rows.forEach((r) => {
-  const tr = document.createElement("tr");
+  const tbody = document.createElement("tbody");
+  rows.forEach((r) => {
+    const tr = document.createElement("tr");
+    keys.forEach((k) => {
+      const td = document.createElement("td");
+      let v = r[k];
 
-  keys.forEach((k) => {
-    const td = document.createElement("td");
+      // 🔹 Direction (positions): "Long - 5x"
+      if (isPositions && k === "side") {
+        const sideText = v == null ? "" : String(v);
+        const lev = typeof r.leverage === "number" ? r.leverage : null;
+        td.textContent = lev ? `${sideText} - ${lev}x` : sideText;
 
-    // 🔹 NEW: render TP/SL coverage column
-    if (isPositions && k === "fullTpSl") {
-      const entry = opts.slTpByCoin?.[r.coin];
-      let text = "";
+      // 🔹 Position Value cell: main value + size underneath
+      } else if (isPositions && k === "value") {
+        const main =
+          typeof v === "number"
+            ? "$" + formatNumber(v, 2)
+            : v == null
+            ? ""
+            : String(v);
 
-      if (entry) {
-        const posSize = Math.abs(Number(r.size));
+        const sz = typeof r.size === "number" ? r.size : null;
+        const coin = r.coin ? String(r.coin).toUpperCase() : "";
+        const sub =
+          sz != null
+            ? `${formatNumber(sz, 2)}${coin ? " " + coin : ""}`
+            : "";
 
-        const tpSize = entry.tps.reduce(
-          (sum, o) => sum + Math.abs(Number(o.sz ?? o.size ?? 0)),
-          0
-        );
+        td.innerHTML = sub
+          ? `<div>${main}</div>
+             <div style="font-size:0.78rem; color: var(--muted); margin-top:2px;">${sub}</div>`
+          : `<div>${main}</div>`;
 
-        const slSize = entry.sls.reduce(
-          (sum, o) => sum + Math.abs(Number(o.sz ?? o.size ?? 0)),
-          0
-        );
+      } else if (typeof v === "number") {
+        // 🔹 Entry date formatting (positions)
+        if (isPositions && k === "entryTs") {
+          td.textContent = formatDateTime(v);
 
-        if (posSize > 0) {
-          if (tpSize >= posSize * 0.95 && slSize >= posSize * 0.95) {
-            text = "Full TP + SL";
-          } else if (tpSize >= posSize * 0.95) {
-            text = "Full TP";
-          } else if (slSize >= posSize * 0.95) {
-            text = "Full SL";
+        // 🔹 Duration (both open + closed)
+        } else if (k === "durationMs") {
+          td.textContent = humanizeDuration(v);
+
+        // 🔹 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
+        } else if (k === "unrealizedPnl") {
+          const sign = v >= 0 ? "" : "-";
+          const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
+
+          const roe = typeof r.roePct === "number" ? r.roePct : null;
+          let roeText = "";
+          if (roe !== null) {
+            const pctSign = roe >= 0 ? "" : "-";
+            roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
           }
-        }
-      }
 
-      td.textContent = text;
-      tr.appendChild(td);
-      return; // only skips to next column
-    }
+          td.textContent = baseText + roeText;
 
-    // Normal logic starts here
-    let v = r[k];
+          if (v > 0) td.style.color = "var(--success)";
+          if (v < 0) td.style.color = "var(--danger)";
 
-    // 🔹 Direction (positions): "Long - 5x"
-    if (isPositions && k === "side") {
-      const sideText = v == null ? "" : String(v);
-      const lev = typeof r.leverage === "number" ? r.leverage : null;
-      td.textContent = lev ? `${sideText} - ${lev}x` : sideText;
-      tr.appendChild(td);
-      return;
-    }
-
-    // 🔹 Position Value cell: main value + size underneath
-    if (isPositions && k === "value") {
-      const main =
-        typeof v === "number"
-          ? "$" + formatNumber(v, 2)
-          : v == null
-          ? ""
-          : String(v);
-
-      const sz = typeof r.size === "number" ? r.size : null;
-      const coin = r.coin ? String(r.coin).toUpperCase() : "";
-      const sub =
-        sz != null
-          ? `${formatNumber(sz, 2)}${coin ? " " + coin : ""}`
-          : "";
-
-      td.innerHTML = sub
-        ? `<div>${main}</div>
-           <div style="font-size:0.78rem; color: var(--muted); margin-top:2px;">${sub}</div>`
-        : `<div>${main}</div>`;
-
-      tr.appendChild(td);
-      return;
-    }
-
-    if (typeof v === "number") {
-      // 🔹 Entry date formatting (positions)
-      if (isPositions && k === "entryTs") {
-        td.textContent = formatDateTime(v);
-      }
-      // 🔹 Duration (both open + closed)
-      else if (k === "durationMs") {
-        td.textContent = humanizeDuration(v);
-      }
-      // 🔹 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
-      else if (k === "unrealizedPnl") {
-        const sign = v >= 0 ? "" : "-";
-        const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
-
-        const roe = typeof r.roePct === "number" ? r.roePct : null;
-        let roeText = "";
-        if (roe !== null) {
-          const pctSign = roe >= 0 ? "" : "-";
-          roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
+        // 🔹 All other numeric fields
+        } else {
+          const decimals =
+            k === "entryPx" || k === "markPx" ? 4 : 2;
+          td.textContent = formatNumber(v, decimals);
         }
 
-        td.textContent = baseText + roeText;
-
-        if (v > 0) td.style.color = "var(--success)";
-        if (v < 0) td.style.color = "var(--danger)";
+      } else {
+        td.textContent = v == null ? "" : String(v);
       }
-      // 🔹 All other numeric fields
-      else {
-        const decimals =
-          k === "entryPx" || k === "markPx" ? 4 : 2;
-        td.textContent = formatNumber(v, decimals);
-      }
-    } else {
-      td.textContent = v == null ? "" : String(v);
-    }
 
-    tr.appendChild(td);
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
   });
-
-  tbody.appendChild(tr);
-});
-table.appendChild(tbody);
-container.appendChild(table);
-
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
 
   function renderFundingTable(container) {
     container.innerHTML = "";
-  
+
     const start = fundingPage * FUNDING_PAGE_SIZE;
     const end = start + FUNDING_PAGE_SIZE;
     const pageItems = fundingEventsAll.slice(start, end);
-  
+
     // Header
     const header = document.createElement("div");
     header.style.padding = "8px 10px";
@@ -1038,7 +876,7 @@ container.appendChild(table);
     header.textContent =
       `Showing ${start + 1}–${Math.min(end, fundingEventsAll.length)} of ${fundingEventsAll.length} transfers`;
     container.appendChild(header);
-  
+
     if (pageItems.length === 0) {
       const empty = document.createElement("div");
       empty.style.padding = "10px";
@@ -1047,7 +885,7 @@ container.appendChild(table);
       container.appendChild(empty);
       return;
     }
-  
+
     // Table
     const table = document.createElement("table");
     table.innerHTML = `
@@ -1062,13 +900,13 @@ container.appendChild(table);
       </thead>
     `;
     const tbody = document.createElement("tbody");
-  
+
     pageItems.forEach(ev => {
       const shortHash =
         ev.hash && ev.hash.length > 14
           ? `${ev.hash.slice(0, 10)}…${ev.hash.slice(-6)}`
           : (ev.hash || "");
-  
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${formatDateTime(ev.time)}</td>
@@ -1079,16 +917,16 @@ container.appendChild(table);
       `;
       tbody.appendChild(tr);
     });
-  
+
     table.appendChild(tbody);
     container.appendChild(table);
-  
+
     // Pagination buttons
     const nav = document.createElement("div");
     nav.style.marginTop = "10px";
     nav.style.display = "flex";
     nav.style.justifyContent = "space-between";
-  
+
     const prevBtn = document.createElement("button");
     prevBtn.textContent = "← Prev";
     prevBtn.disabled = fundingPage === 0;
@@ -1096,7 +934,7 @@ container.appendChild(table);
       fundingPage -= 1;
       renderFundingTable(container);
     };
-  
+
     const nextBtn = document.createElement("button");
     nextBtn.textContent = "Next →";
     nextBtn.disabled = end >= fundingEventsAll.length;
@@ -1104,7 +942,7 @@ container.appendChild(table);
       fundingPage += 1;
       renderFundingTable(container);
     };
-  
+
     nav.appendChild(prevBtn);
     nav.appendChild(nextBtn);
     container.appendChild(nav);
@@ -1143,6 +981,7 @@ container.appendChild(table);
           <th>Side</th>
           <th>Price</th>
           <th>Size</th>
+          <th>Notional</th>
           <th>Order Value</th>
           <th>Placed</th>
         </tr>
@@ -1160,6 +999,9 @@ container.appendChild(table);
     const sz  = Number(o.sz);
     const notional = Number.isFinite(px) && Number.isFinite(sz) ? px * sz : null;
 
+    const ts = o.ts
+      ? new Date(o.ts).toISOString().slice(5, 16).replace("T", " ")
+      : "-";
     const ts = o.ts ? formatDateTime(o.ts) : "-";
 
     html += `
@@ -1168,6 +1010,7 @@ container.appendChild(table);
         <td>${side}</td>
         <td>${Number.isFinite(px) ? px.toPrecision(6) : "-"}</td>
         <td>${Number.isFinite(sz) ? sz.toFixed(2) : "-"}</td>
+        <td>${Number.isFinite(notional) ? notional.toFixed(2) : "-"}</td>
         <td>${Number.isFinite(notional) ? "$" + formatNumber(notional, 2) : "-"}</td>
         <td>${ts}</td>
       </tr>
@@ -1274,7 +1117,7 @@ function setActiveTable(table) {
     function updateChartSubtitle() {
     const sub = document.getElementById("chart-subtitle");
     if (!sub) return;
-  
+
     if (activeChartMode === "pnl") {
       sub.textContent = "Realized + funding PnL for this window.";
     } else {
@@ -1286,14 +1129,14 @@ function setActiveTable(table) {
     const card = document.getElementById("chart-card");
     const hasEquity = Array.isArray(equitySeriesAll) && equitySeriesAll.length > 0;
     const hasPnl = Array.isArray(pnlSeriesAll) && pnlSeriesAll.length > 0;
-  
+
     // Nothing to show
     if (!hasEquity && !hasPnl) {
       if (card) card.style.display = "none";
       return;
     }
     if (card) card.style.display = "";
-  
+
     // Choose source series based on chart mode
     let source = [];
     if (activeChartMode === "pnl" && hasPnl) {
@@ -1301,7 +1144,7 @@ function setActiveTable(table) {
     } else if (activeChartMode === "balance" && hasEquity) {
       source = equitySeriesAll.map(pt => ({ ts: pt.ts, value: pt.equity }));
     }
-  
+
     // Fallback: if selected mode has no data, switch to the other
     if (!source.length) {
       if (hasEquity) {
@@ -1312,39 +1155,39 @@ function setActiveTable(table) {
         source = pnlSeriesAll.map(pt => ({ ts: pt.ts, value: pt.pnl }));
       }
     }
-  
+
     if (!source.length) {
       if (card) card.style.display = "none";
       return;
     }
-  
+
     const dayMs = 24 * 60 * 60 * 1000;
     const firstTs = source[0].ts;
     const lastTs  = source[source.length - 1].ts;
     const totalSpan = lastTs - firstTs;
-  
+
     // Normal range windowing
     let cutoff = null;
     if (range === "1d")       cutoff = lastTs - dayMs;
     else if (range === "7d")  cutoff = lastTs - 7 * dayMs;
     else if (range === "30d") cutoff = lastTs - 30 * dayMs;
     else if (range === "90d") cutoff = lastTs - 90 * dayMs;
-  
+
     let filtered = source;
     if (cutoff !== null) {
       filtered = source.filter(p => p.ts >= cutoff);
-  
+
       // Fallback if too few points (except 7D)
       let minPoints = 2;
       if (range === "1d") minPoints = 4;
       else if (range === "30d") minPoints = 4;
-  
+
       if (range !== "7d" && filtered.length < minPoints) {
         const N = Math.min(10, source.length);
         filtered = source.slice(-N);
       }
     }
-  
+
     const labelRange = totalSpan <= dayMs ? "1d" : range;
     const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
     const values = filtered.map(p => p.value);
@@ -1353,29 +1196,29 @@ function setActiveTable(table) {
     if (liveEl) {
       // make sure the container itself never carries color classes
       liveEl.classList.remove("chart-live-positive", "chart-live-negative");
-    
+
       if (values.length) {
         const lastVal = values[values.length - 1];
-    
+
         // Range label: All / 1D / 7D / 30D / 90D
         let rangeLabel = "All";
         if (range === "1d") rangeLabel = "1D";
         else if (range === "7d") rangeLabel = "7D";
         else if (range === "30d") rangeLabel = "30D";
         else if (range === "90d") rangeLabel = "90D";
-    
+
         // Text label depends on mode
         const modeLabel =
           activeChartMode === "pnl" ? "PnL (Perp)" : "Perp balance";
-    
+
         const absText = "$" + formatNumber(Math.abs(lastVal), 2);
         const sign = lastVal >= 0 ? "" : "-";
-    
+
         const numberClass =
           lastVal > 0 ? "chart-live-positive"
           : lastVal < 0 ? "chart-live-negative"
           : "";
-    
+
         // Use HTML so only the number span gets the color class
         liveEl.innerHTML =
           `${rangeLabel} ${modeLabel} ` +
@@ -1384,18 +1227,18 @@ function setActiveTable(table) {
         liveEl.textContent = "";
       }
     }
-      
+
     // Decide line color based on performance (up = green, down = red)
     let lineColor, fillColor;
     if (values.length >= 2) {
       const firstVal = values[0];
       const lastVal  = values[values.length - 1];
       const isUp = lastVal >= firstVal;
-  
+
       lineColor = isUp
         ? "rgba(34,197,94,1)"      // green
         : "rgba(239,68,68,1)";     // red
-  
+
       fillColor = isUp
         ? "rgba(34,197,94,0.15)"
         : "rgba(239,68,68,0.15)";
@@ -1404,25 +1247,25 @@ function setActiveTable(table) {
       lineColor = "rgba(148,163,184,1)";
       fillColor = "rgba(148,163,184,0.15)";
     }
-  
+
     const ctx = document.getElementById("equityChart").getContext("2d");
-  
+
     const labelText = activeChartMode === "pnl" ? "Perp PnL" : "Perp balance";
     const tooltipPrefix = activeChartMode === "pnl"
       ? "PnL: $"
       : "Perp balance: $";
-  
+
     if (equityChart) {
       equityChart.data.labels = labels;
       equityChart.data.datasets[0].data = values;
       equityChart.data.datasets[0].label = labelText;
       equityChart.data.datasets[0].borderColor = lineColor;
       equityChart.data.datasets[0].backgroundColor = fillColor;
-  
+
       equityChart.options.plugins.tooltip.callbacks.label = function (ctx) {
         return tooltipPrefix + formatNumber(ctx.parsed.y, 2);
       };
-  
+
       equityChart.update();
     } else {
       // Animation: draw line from left to right
@@ -1517,7 +1360,7 @@ function setActiveTable(table) {
         },
       });
     }
-  
+
     // Highlight active range button
     document.querySelectorAll(".range-btn").forEach(btn => {
       if (btn.dataset.range === range) {
@@ -1526,7 +1369,7 @@ function setActiveTable(table) {
         btn.classList.remove("range-btn-active");
       }
     });
-  
+
     // Keep subtitle in sync (PnL vs balance)
     updateChartSubtitle();
   }
@@ -1711,44 +1554,29 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     } else {
       metaBadges.forEach(b => summaryMeta.appendChild(b));
     }
-    
-    // Use backend "now" if available, else browser clock
+
     if (updateTables) {
-      const positions = data.positions || data.openPositions || data.open || [];
-      const closed    = data.closed    || data.closedTrades || data.trades || [];
+    const positions = data.positions || data.openPositions || data.open || [];
+    const closed = data.closed || data.closedTrades || data.trades || [];
 
-      const positionsContainer = document.getElementById("positionsTableContainer");
-      const closedContainer    = document.getElementById("closedTableContainer");
-      const cashContainer      = document.getElementById("cashTableContainer");
+    const positionsContainer = document.getElementById("positionsTableContainer");
+    const closedContainer = document.getElementById("closedTableContainer");
+    const cashContainer = document.getElementById("cashTableContainer");
 
-      // Prefer frontendOpenOrders if present, then openOrders, then orders
-      const openOrders =
-        data.frontendOpenOrders || data.openOrders || data.orders || [];
+    // Use backend "now" if available, else browser clock
+    const nowMs =
+      typeof data.debugWindow?.endMs === "number"
+        ? data.debugWindow.endMs
+        : Date.now();
 
-      // Use backend "now" if available, else browser clock
-      const nowMs =
-        typeof data.debugWindow?.endMs === "number"
-          ? data.debugWindow.endMs
-          : Date.now();
+    // Build tables
+    buildTable(positionsContainer, positions, { type: "positions", nowMs });
+    buildTable(closedContainer, closed, { type: "closed" });
 
-      // Build TP/SL coverage map per coin
-      const slTpByCoin = buildSlTpByCoin(positions, openOrders);
-
-      // Build tables (positions gets slTpByCoin)
-      buildTable(positionsContainer, positions, {
-        type: "positions",
-        nowMs,
-        slTpByCoin,
-      });
-      buildTable(closedContainer, closed, {
-        type: "closed",
-        nowMs,
-      });
-
-      // Open orders tab
+      const openOrders = data.openOrders || data.orders || [];
       renderOpenOrders(openOrders);
 
-      // Funding events
+      // Filter funding events once
       fundingEventsAll = (data.fundingEvents || [])
         .filter(ev => ev.kind === "perpTransfer")
         .sort((a, b) => b.time - a.time); // newest first
@@ -1756,10 +1584,10 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       fundingPage = 0;
       renderFundingTable(cashContainer);
 
-      // Tab counts
+      // Update tab counts
       document.getElementById("positionsCount").textContent = `(${positions.length})`;
-      document.getElementById("closedCount").textContent    = `(${closed.length})`;
-      document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
+      document.getElementById("closedCount").textContent = `(${closed.length})`;
+      document.getElementById("cashCount").textContent = `(${fundingEventsAll.length})`;
     }
 
     // --- Perp balance series ---
