@@ -982,12 +982,15 @@ function buildTable(container, rows, opts = {}) {
 
           // 🔹 All other numeric fields
           } else {
-            if (k === "entryPx" || k === "markPx") {
-              // Use unified token price formatting for position entry/current price
+            if (
+              k === "entryPx" ||
+              k === "markPx" ||
+              k === "avgEntryPx" ||    // 🔥 new
+              k === "exitPx"           // 🔥 new
+            ) {
               const pxText = formatTokenPrice(v);
-              td.textContent = pxText || "";
+              td.textContent = pxText ? "$" + pxText : "";
             } else {
-              // Default numeric formatting for everything else
               td.textContent = formatNumber(v, 2);
             }
           }
