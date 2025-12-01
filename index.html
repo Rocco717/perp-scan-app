@@ -1572,6 +1572,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
 
       const openOrders = data.openOrders || data.orders || [];
       renderOpenOrders(openOrders);
+      document.getElementById("ordersCount").textContent = `(${openOrders.length})`;
 
       // Filter funding events once
       fundingEventsAll = (data.fundingEvents || [])
