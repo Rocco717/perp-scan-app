@@ -789,6 +789,7 @@ function buildTable(container, rows, opts = {}) {
   const isPositions = opts.type === "positions";
   const isClosed = opts.type === "closed";
   const nowMs = typeof opts.nowMs === "number" ? opts.nowMs : Date.now();
+  const slTpByCoin = opts.slTpByCoin || null;
 
   // 🔹 For positions, compute durationMs from entryTs if not present
   if (isPositions) {
@@ -817,6 +818,7 @@ function buildTable(container, rows, opts = {}) {
         unrealizedPnl: "Unrealized PnL",
         entryTs: "Entry Date",
         durationMs: "Duration",
+        fullTpSl: "Full TP/SL",
       }
     : isClosed
     ? {
@@ -849,6 +851,11 @@ function buildTable(container, rows, opts = {}) {
     if (hidden.has(k)) return false;
     return true;
   });
+
+    // For positions: force Full TP/SL column to exist
+  if (isPositions && !keys.includes("fullTpSl")) {
+    keys.push("fullTpSl");
+  }
 
   // 🔹 Column ordering tweaks for positions
   if (isPositions) {
@@ -893,51 +900,95 @@ function buildTable(container, rows, opts = {}) {
   thead.appendChild(trHead);
   table.appendChild(thead);
 
-  const tbody = document.createElement("tbody");
-  rows.forEach((r) => {
-    const tr = document.createElement("tr");
-    keys.forEach((k) => {
-      const td = document.createElement("td");
-      let v = r[k];
+const tbody = document.createElement("tbody");
+rows.forEach((r) => {
+  const tr = document.createElement("tr");
 
-      // 🔹 Direction (positions): "Long - 5x"
-      if (isPositions && k === "side") {
-        const sideText = v == null ? "" : String(v);
-        const lev = typeof r.leverage === "number" ? r.leverage : null;
-        td.textContent = lev ? `${sideText} - ${lev}x` : sideText;
+  keys.forEach((k) => {
+    const td = document.createElement("td");
 
-      // 🔹 Position Value cell: main value + size underneath
-      } else if (isPositions && k === "value") {
-        const main =
-          typeof v === "number"
-            ? "$" + formatNumber(v, 2)
-            : v == null
-            ? ""
-            : String(v);
+    // 🔹 NEW: render TP/SL coverage column
+    if (isPositions && k === "fullTpSl") {
+      const entry = opts.slTpByCoin?.[r.coin];
+      let text = "";
 
-        const sz = typeof r.size === "number" ? r.size : null;
-        const coin = r.coin ? String(r.coin).toUpperCase() : "";
-        const sub =
-          sz != null
-            ? `${formatNumber(sz, 2)}${coin ? " " + coin : ""}`
-            : "";
+      if (entry) {
+        const posSize = Math.abs(Number(r.size));
 
-        td.innerHTML = sub
-          ? `<div>${main}</div>
-             <div style="font-size:0.78rem; color: var(--muted); margin-top:2px;">${sub}</div>`
-          : `<div>${main}</div>`;
+        const tpSize = entry.tps.reduce(
+          (sum, o) => sum + Math.abs(Number(o.sz ?? o.size ?? 0)),
+          0
+        );
 
-      } else if (typeof v === "number") {
-        // 🔹 Entry date formatting (positions)
-        if (isPositions && k === "entryTs") {
-          td.textContent = formatDateTime(v);
+        const slSize = entry.sls.reduce(
+          (sum, o) => sum + Math.abs(Number(o.sz ?? o.size ?? 0)),
+          0
+        );
 
-        // 🔹 Duration (both open + closed)
-        } else if (k === "durationMs") {
-          td.textContent = humanizeDuration(v);
+        if (posSize > 0) {
+          if (tpSize >= posSize * 0.95 && slSize >= posSize * 0.95) {
+            text = "Full TP + SL";
+          } else if (tpSize >= posSize * 0.95) {
+            text = "Full TP";
+          } else if (slSize >= posSize * 0.95) {
+            text = "Full SL";
+          }
+        }
+      }
 
-        // 🔹 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
-      } else if (k === "unrealizedPnl") {
+      td.textContent = text;
+      tr.appendChild(td);
+      return; // only skips to next column
+    }
+
+    // Normal logic starts here
+    let v = r[k];
+
+    // 🔹 Direction (positions): "Long - 5x"
+    if (isPositions && k === "side") {
+      const sideText = v == null ? "" : String(v);
+      const lev = typeof r.leverage === "number" ? r.leverage : null;
+      td.textContent = lev ? `${sideText} - ${lev}x` : sideText;
+      tr.appendChild(td);
+      return;
+    }
+
+    // 🔹 Position Value cell: main value + size underneath
+    if (isPositions && k === "value") {
+      const main =
+        typeof v === "number"
+          ? "$" + formatNumber(v, 2)
+          : v == null
+          ? ""
+          : String(v);
+
+      const sz = typeof r.size === "number" ? r.size : null;
+      const coin = r.coin ? String(r.coin).toUpperCase() : "";
+      const sub =
+        sz != null
+          ? `${formatNumber(sz, 2)}${coin ? " " + coin : ""}`
+          : "";
+
+      td.innerHTML = sub
+        ? `<div>${main}</div>
+           <div style="font-size:0.78rem; color: var(--muted); margin-top:2px;">${sub}</div>`
+        : `<div>${main}</div>`;
+
+      tr.appendChild(td);
+      return;
+    }
+
+    if (typeof v === "number") {
+      // 🔹 Entry date formatting (positions)
+      if (isPositions && k === "entryTs") {
+        td.textContent = formatDateTime(v);
+      }
+      // 🔹 Duration (both open + closed)
+      else if (k === "durationMs") {
+        td.textContent = humanizeDuration(v);
+      }
+      // 🔹 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
+      else if (k === "unrealizedPnl") {
         const sign = v >= 0 ? "" : "-";
         const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
 
@@ -948,74 +999,29 @@ function buildTable(container, rows, opts = {}) {
           roeText = ` (${pctSign}${formatNumber(Math.abs(roe), 2)}%)`;
         }
 
-        // main PnL line
-        const main = baseText + roeText;
-
-        // 🔹 Extra line ONLY if we have full TP/SL coverage
-        let fullLabel = "";
-
-        if (isPositions && opts.slTpByCoin && r.coin) {
-          const entry = opts.slTpByCoin[r.coin];
-          if (entry) {
-            // prefer backend position stored in slTp map if present
-            const posSize = getPositionAbsSize(entry.position || r);
-            if (posSize && posSize > 0) {
-              const tpSize = entry.tps.reduce(
-                (sum, o) => sum + getOrderAbsSize(o),
-                0
-              );
-              const slSize = entry.sls.reduce(
-                (sum, o) => sum + getOrderAbsSize(o),
-                0
-              );
-
-              // use a tiny tolerance for rounding
-              const threshold = posSize * 0.99;
-              const tpFull = tpSize >= threshold;
-              const slFull = slSize >= threshold;
-
-              if (tpFull && slFull) {
-                fullLabel = "Full TP & SL";
-              } else if (tpFull) {
-                fullLabel = "Full TP";
-              } else if (slFull) {
-                fullLabel = "Full SL";
-              }
-            }
-          }
-        }
-
-        if (fullLabel) {
-          td.innerHTML =
-            `<div>${main}</div>` +
-            `<div style="font-size:0.78rem; color: var(--muted); margin-top:2px;">${fullLabel}</div>`;
-        } else {
-          // no full coverage → just show PnL line
-          td.textContent = main;
-        }
+        td.textContent = baseText + roeText;
 
         if (v > 0) td.style.color = "var(--success)";
         if (v < 0) td.style.color = "var(--danger)";
-
-
-        // 🔹 All other numeric fields
-        } else {
-          const decimals =
-            k === "entryPx" || k === "markPx" ? 4 : 2;
-          td.textContent = formatNumber(v, decimals);
-        }
-
-      } else {
-        td.textContent = v == null ? "" : String(v);
       }
+      // 🔹 All other numeric fields
+      else {
+        const decimals =
+          k === "entryPx" || k === "markPx" ? 4 : 2;
+        td.textContent = formatNumber(v, decimals);
+      }
+    } else {
+      td.textContent = v == null ? "" : String(v);
+    }
 
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
+    tr.appendChild(td);
   });
-  table.appendChild(tbody);
-  container.appendChild(table);
-}
+
+  tbody.appendChild(tr);
+});
+table.appendChild(tbody);
+container.appendChild(table);
+
 
   function renderFundingTable(container) {
     container.innerHTML = "";
@@ -1732,22 +1738,22 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         typeof data.debugWindow?.endMs === "number"
           ? data.debugWindow.endMs
           : Date.now();
-
+      
+      // 🔹 Open orders
+      const openOrders = data.openOrders || data.orders || [];
+      
       // 🔹 Build TP/SL coverage map per coin
       const slTpByCoin = buildSlTpByCoin(positions, openOrders);
-
+      
       // 🔹 Build tables (positions gets slTpByCoin)
       buildTable(positionsContainer, positions, {
         type: "positions",
         nowMs,
         slTpByCoin,
       });
-      buildTable(closedContainer, closed, {
-        type: "closed",
-        nowMs,
-      });
-
-      // 🔹 Open orders tab
+      buildTable(closedContainer, closed, { type: "closed", nowMs });
+      
+      // 🔹 Render Open Orders tab
       renderOpenOrders(openOrders);
 
       // 🔹 Filter funding events once
