@@ -846,53 +846,68 @@ function buildTable(container, rows, opts = {}) {
       const td = document.createElement("td");
       let v = r[k];
 
-    // NEW: Single full-exit TP/SL price only
-    if (isPositions && k === "fullTpSl") {
-      const entry = opts.slTpByCoin?.[r.coin];
-      let text = "";
-    
-      if (entry) {
-        const posSize = Math.abs(Number(r.size));
-    
-        if (Number.isFinite(posSize) && posSize > 0) {
-          // "Full" = one order that closes basically 100% of the position.
-          // If you want tolerance, change threshold to posSize * 0.95 etc.
-          const threshold = posSize;
-    
-          const getOrderSize = (o) => {
-            const raw = o.sz ?? o.size;
-            const n = Number(raw);
-            return Number.isFinite(n) ? Math.abs(n) : 0;
-          };
-    
-          // Only keep orders that individually qualify as a "full exit"
-          const qualifyingTps = entry.tps.filter((o) => getOrderSize(o) >= threshold);
-          const qualifyingSls = entry.sls.filter((o) => getOrderSize(o) >= threshold);
-    
-          // We only want exactly ONE full TP or SL on each side
-          const tpOrder = qualifyingTps.length === 1 ? qualifyingTps[0] : null;
-          const slOrder = qualifyingSls.length === 1 ? qualifyingSls[0] : null;
-    
-          const formatPx = (o) => {
-            const rawPx = o.triggerPx ?? o.px ?? o.price;
-            const n = Number(rawPx);
-            if (!Number.isFinite(n)) return "";
-            // Match your open orders table style
-            return n.toPrecision(6);
-          };
-    
-          const parts = [];
-          if (tpOrder) parts.push(`TP ${formatPx(tpOrder)}`);
-          if (slOrder) parts.push(`SL ${formatPx(slOrder)}`);
-    
-          text = parts.join(" | ");
+      // Single full-exit TP/SL price only
+      if (isPositions && k === "fullTpSl") {
+        const entry = opts.slTpByCoin?.[r.coin];
+        let text = "";
+      
+        if (entry) {
+          const posSize = Math.abs(Number(r.size));
+      
+          if (Number.isFinite(posSize) && posSize > 0) {
+            // "Full" = one order that closes ~100% of the position.
+            // If you want tolerance, change threshold to posSize * 0.95.
+            const threshold = posSize;
+      
+            const getOrderSize = (o) => {
+              const raw = o.sz ?? o.size;
+              const n = Number(raw);
+              return Number.isFinite(n) ? Math.abs(n) : 0;
+            };
+      
+            // Only keep orders that individually qualify as a "full exit"
+            const qualifyingTps = entry.tps.filter((o) => getOrderSize(o) >= threshold);
+            const qualifyingSls = entry.sls.filter((o) => getOrderSize(o) >= threshold);
+      
+            // We only want exactly ONE full TP or SL on each side
+            const tpOrder = qualifyingTps.length === 1 ? qualifyingTps[0] : null;
+            const slOrder = qualifyingSls.length === 1 ? qualifyingSls[0] : null;
+      
+            const formatPx = (o) => {
+              const isTrigger = o.isTrigger === true;
+      
+              let raw;
+              if (isTrigger) {
+                raw = o.triggerPx;
+              } else {
+                raw = o.px ?? o.price;
+              }
+      
+              const n = Number(raw);
+              if (!Number.isFinite(n) || n === 0) return ""; // avoid bogus 0.00000
+      
+              // Match your open orders display style
+              return n.toPrecision(6);
+            };
+      
+            const parts = [];
+            if (tpOrder) {
+              const px = formatPx(tpOrder);
+              if (px) parts.push(`TP ${px}`);
+            }
+            if (slOrder) {
+              const px = formatPx(slOrder);
+              if (px) parts.push(`SL ${px}`);
+            }
+      
+            text = parts.join(" | ");
+          }
         }
+      
+        td.textContent = text;
+        tr.appendChild(td);
+        return;
       }
-    
-      td.textContent = text;
-      tr.appendChild(td);
-      return;
-    }
 
       // 🔹 Direction (positions): "Long - 5x"
       if (isPositions && k === "side") {
