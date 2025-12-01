@@ -491,8 +491,24 @@
            <!-- NEW TOP ROW: snapshot (left) + chart (right) -->
       <div class="top-row">
 
-      <!-- LEFT: Empty placeholder card to preserve layout -->
-      <section class="card" id="summary-card" style="display:none; padding:0; height:100%;">
+      <!-- LEFT: Perp ROE card -->
+      <section class="card" id="summary-card" style="display:none; height:100%;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Perp ROE</div>
+            <div class="card-sub" id="roeRangeLabel">Return on equity for this window.</div>
+          </div>
+        </div>
+      
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div id="roeValue"
+               style="font-size:1.6rem; font-weight:600; color:var(--muted);">
+            --
+          </div>
+          <div style="font-size:0.78rem; color:var(--muted);">
+            Uses perp account value at the start and end of the selected timeframe.
+          </div>
+        </div>
       </section>
 
         <!-- RIGHT: Perp PnL / balance chart -->
@@ -651,6 +667,19 @@
     
       return n.toFixed(decimals);
     }
+
+    function computeRoeFromEquitySeries(series) {
+    if (!Array.isArray(series) || series.length < 2) return null;
+
+    const start = series[0].value;
+    const end   = series[series.length - 1].value;
+
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start <= 0) {
+      return null;
+    }
+
+    return ((end - start) / start) * 100;
+  }
 
   function createBadge(label, value, options = {}) {
     if (value === null || value === undefined || value === "") return null;
@@ -1355,6 +1384,71 @@ function setActiveTable(table) {
         filtered = source.slice(-N);
       }
     }
+
+      // --- Update ROE card (always based on equity, not PnL) ---
+      (function updateRoeCard() {
+        const roeValueEl = document.getElementById("roeValue");
+        const roeRangeLabelEl = document.getElementById("roeRangeLabel");
+    
+        if (!roeValueEl || !roeRangeLabelEl) return;
+    
+        // If we have no equity series, clear the card
+        if (!Array.isArray(equitySeriesAll) || equitySeriesAll.length < 2) {
+          roeValueEl.textContent = "--";
+          roeValueEl.style.color = "var(--muted)";
+          roeRangeLabelEl.textContent = "Return on equity for this window.";
+          return;
+        }
+    
+        const equitySource = equitySeriesAll.map(pt => ({
+          ts: Number(pt.ts),
+          value: Number(pt.equity),
+        })).filter(p => Number.isFinite(p.ts) && Number.isFinite(p.value))
+          .sort((a, b) => a.ts - b.ts);
+    
+        if (!equitySource.length) {
+          roeValueEl.textContent = "--";
+          roeValueEl.style.color = "var(--muted)";
+          roeRangeLabelEl.textContent = "Return on equity for this window.";
+          return;
+        }
+    
+        let equityFiltered = equitySource;
+    
+        if (cutoff !== null) {
+          equityFiltered = equitySource.filter(p => p.ts >= cutoff);
+          if (equityFiltered.length < 2) {
+            const N = Math.min(10, equitySource.length);
+            equityFiltered = equitySource.slice(-N);
+          }
+        }
+    
+        const roe = computeRoeFromEquitySeries(equityFiltered);
+    
+        // Map range → label
+        let rangeLabel = "All-time";
+        if (range === "1d") rangeLabel = "1D";
+        else if (range === "7d") rangeLabel = "7D";
+        else if (range === "30d") rangeLabel = "30D";
+        else if (range === "90d") rangeLabel = "90D";
+    
+        roeRangeLabelEl.textContent = `Perp ROE for ${rangeLabel} window.`;
+    
+        if (roe == null) {
+          roeValueEl.textContent = "--";
+          roeValueEl.style.color = "var(--muted)";
+          return;
+        }
+    
+        const sign = roe >= 0 ? "+" : "-";
+        const absRoe = Math.abs(roe).toFixed(2);
+    
+        roeValueEl.textContent = `${sign}${absRoe}%`;
+        roeValueEl.style.color =
+          roe > 0 ? "var(--success)"
+          : roe < 0 ? "var(--danger)"
+          : "var(--muted)";
+      })();
 
     const labelRange = totalSpan <= dayMs ? "1d" : range;
     const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
