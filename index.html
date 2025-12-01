@@ -623,6 +623,27 @@
     return n.toLocaleString(undefined, opts);
   }
 
+    // 🔹 Unified token price formatter: dynamic decimals by magnitude
+  function formatTokenPrice(raw) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n === 0) return "";
+
+    const abs = Math.abs(n);
+    let decimals;
+
+    if (abs >= 1) {
+      decimals = 3;        // e.g. 1.000, 60.125
+    } else if (abs >= 0.1) {
+      decimals = 4;
+    } else if (abs >= 0.01) {
+      decimals = 5;
+    } else {
+      decimals = 6;        // tiny coins like PUMP
+    }
+
+    return n.toFixed(decimals);
+  }
+
   function createBadge(label, value, options = {}) {
     if (value === null || value === undefined || value === "") return null;
     const badge = document.createElement("div");
@@ -875,29 +896,26 @@ function buildTable(container, rows, opts = {}) {
       
             const formatPx = (o) => {
               const isTrigger = o.isTrigger === true;
-      
+            
               let raw;
               if (isTrigger) {
                 raw = o.triggerPx;
               } else {
                 raw = o.px ?? o.price;
               }
-      
-              const n = Number(raw);
-              if (!Number.isFinite(n) || n === 0) return ""; // avoid bogus 0.00000
-      
-              // Match your open orders display style
-              return n.toPrecision(6);
+            
+              const formatted = formatTokenPrice(raw);   // 🔥 unified dynamic decimals
+              return formatted;                           // may be "" if invalid
             };
       
             const parts = [];
             if (tpOrder) {
               const px = formatPx(tpOrder);
-              if (px) parts.push(`TP ${px}`);
+              if (px) parts.push(`TP $${px}`);
             }
             if (slOrder) {
               const px = formatPx(slOrder);
-              if (px) parts.push(`SL ${px}`);
+              if (px) parts.push(`SL $${px}`);
             }
       
             text = parts.join(" | ");
@@ -1115,17 +1133,20 @@ function renderOpenOrders(openOrders) {
       o.side === "a" ? "Sell" :
       (o.side || "-").toString().toUpperCase();
 
-    const px  = Number(o.px);
-    const sz  = Number(o.sz);
+    const rawPx = o.px ?? o.price;
+    const px    = Number(rawPx);
+    const sz    = Number(o.sz);
     const notional = Number.isFinite(px) && Number.isFinite(sz) ? px * sz : null;
 
     const ts = o.ts ? formatDateTime(o.ts) : "-";
+
+    const pxDisplay = formatTokenPrice(rawPx);
 
     html += `
       <tr>
         <td>${o.coin ?? "-"}</td>
         <td>${side}</td>
-        <td>${Number.isFinite(px) ? px.toPrecision(6) : "-"}</td>
+        <td>${pxDisplay || "-"}</td>
         <td>${Number.isFinite(sz) ? sz.toFixed(2) : "-"}</td>
         <td>${Number.isFinite(notional) ? notional.toFixed(2) : "-"}</td>
         <td>${Number.isFinite(notional) ? "$" + formatNumber(notional, 2) : "-"}</td>
