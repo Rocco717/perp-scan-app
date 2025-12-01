@@ -1062,10 +1062,26 @@ function buildTable(container, rows, opts = {}) {
           : (ev.hash || "");
 
       const tr = document.createElement("tr");
+      
       tr.innerHTML = `
         <td>${formatDateTime(ev.time)}</td>
-        <td>${ev.direction === "IN" ? "Deposit" : "Withdrawal"}</td>
-        <td>${formatNumber(ev.usdcValue ?? ev.amount ?? 0, 2)}</td>
+      
+        <td style="color:${
+          ev.direction === "IN" ? "var(--success)" : "var(--danger)"
+        }">
+          ${ev.direction === "IN" ? "Deposit" : "Withdrawal"}
+        </td>
+      
+        <td style="color:${
+          ev.direction === "IN" ? "var(--success)" : "var(--danger)"
+        }">
+          ${
+            ev.direction === "IN"
+              ? "+$" + formatNumber(ev.usdcValue ?? ev.amount ?? 0, 2)
+              : "-$" + formatNumber(ev.usdcValue ?? ev.amount ?? 0, 2)
+          }
+        </td>
+      
         <td>${ev.note || ""}</td>
         <td>${shortHash}</td>
       `;
