@@ -667,6 +667,54 @@
     }).replace(",", ""); // remove comma between date + time
   }
 
+  function buildSlTpByCoin(positions, openOrders) {
+  const posMap = {};
+  positions.forEach(p => {
+    if (!p || !p.coin) return;
+    posMap[p.coin] = p;
+  });
+
+  // Filter only exit orders
+  const exits = (openOrders || []).filter(o =>
+    o && (o.reduceOnly === true || o.isPositionTpsl === true)
+  );
+
+  const out = {};
+
+  exits.forEach(o => {
+    const coin = o.coin;
+    const pos = posMap[coin];
+    if (!pos) return;
+
+    const mark = pos.markPx || pos.indexPx || pos.entryPx;
+    const px = o.isTrigger ? o.triggerPx : o.px;
+
+    const sz = Math.abs(Number(o.sz ?? o.size ?? 0));
+    if (!Number.isFinite(sz) || !Number.isFinite(px)) return;
+
+    const isLong = pos.side?.toLowerCase() === "long";
+    const isSell = o.side === "a" || o.side === "sell";
+    const isBuy  = o.side === "b" || o.side === "buy";
+
+    let kind = "UNKNOWN";
+
+    if (isLong) {
+      if (isSell && px > mark) kind = "TP";
+      else if (isSell && px < mark) kind = "SL";
+    } else {
+      if (isBuy && px > mark) kind = "SL";
+      else if (isBuy && px < mark) kind = "TP";
+    }
+
+    if (!out[coin]) out[coin] = { position: pos, tps: [], sls: [] };
+
+    if (kind === "TP") out[coin].tps.push({ ...o, px, sz });
+    if (kind === "SL") out[coin].sls.push({ ...o, px, sz });
+  });
+
+  return out;
+}
+
 function buildTable(container, rows, opts = {}) {
   container.innerHTML = "";
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -701,6 +749,7 @@ function buildTable(container, rows, opts = {}) {
         coin: "Asset",
         side: "Direction",
         value: "Position Value / Size",
+        fullTpSl: "TP/SL",
         entryPx: "Entry Price",
         markPx: "Current Price",
         unrealizedPnl: "Unrealized PnL",
@@ -748,7 +797,7 @@ function buildTable(container, rows, opts = {}) {
       keys.splice(idxValue, 1);
       keys.splice(idxSide + 1, 0, "value");
     }
-
+  
     // Ensure entryTs comes before duration
     const idxEntry = keys.indexOf("entryTs");
     const idxDur = keys.indexOf("durationMs");
@@ -756,15 +805,23 @@ function buildTable(container, rows, opts = {}) {
       keys.splice(idxEntry, 1);
       keys.splice(idxDur, 0, "entryTs");
     }
-
+  
     // Put duration at the end
     const idxDuration = keys.indexOf("durationMs");
     if (idxDuration !== -1) {
       keys.splice(idxDuration, 1);
       keys.push("durationMs");
     }
+  
+    // 🔹 INSERT: Full TP/SL column after "side"
+    if (!keys.includes("fullTpSl")) {
+      const idxSide2 = keys.indexOf("side");
+      if (idxSide2 !== -1) {
+        keys.splice(idxSide2 + 1, 0, "fullTpSl");
+      }
+    }
   }
-
+  
   if (!keys.length) {
     container.innerHTML =
       '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">Unsupported row format.</div>';
@@ -788,6 +845,47 @@ function buildTable(container, rows, opts = {}) {
     keys.forEach((k) => {
       const td = document.createElement("td");
       let v = r[k];
+
+    // NEW: Full TP/SL detection
+    if (isPositions && k === "fullTpSl") {
+      const entry = opts.slTpByCoin?.[r.coin];
+      let text = "";
+    
+      if (entry) {
+        const posSize = Math.abs(Number(r.size));
+    
+        // sum TP sizes (supports sz or size, ignores junk)
+        const tpSize = entry.tps.reduce((sum, o) => {
+          const raw = o.sz ?? o.size;
+          const n = Number(raw);
+          return Number.isFinite(n) ? sum + Math.abs(n) : sum;
+        }, 0);
+    
+        // sum SL sizes
+        const slSize = entry.sls.reduce((sum, o) => {
+          const raw = o.sz ?? o.size;
+          const n = Number(raw);
+          return Number.isFinite(n) ? sum + Math.abs(n) : sum;
+        }, 0);
+    
+        if (Number.isFinite(posSize) && posSize > 0) {
+          const fullTp = tpSize >= posSize * 0.95;
+          const fullSl = slSize >= posSize * 0.95;
+    
+          if (fullTp && fullSl) {
+            text = "Full TP + SL";
+          } else if (fullTp) {
+            text = "Full TP";
+          } else if (fullSl) {
+            text = "Full SL";
+          }
+        }
+      }
+    
+      td.textContent = text;
+      tr.appendChild(td);
+      return;
+    }
 
       // 🔹 Direction (positions): "Long - 5x"
       if (isPositions && k === "side") {
@@ -1553,39 +1651,52 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     }
 
     if (updateTables) {
-    const positions = data.positions || data.openPositions || data.open || [];
-    const closed = data.closed || data.closedTrades || data.trades || [];
-
-    const positionsContainer = document.getElementById("positionsTableContainer");
-    const closedContainer = document.getElementById("closedTableContainer");
-    const cashContainer = document.getElementById("cashTableContainer");
-
-    // Use backend "now" if available, else browser clock
-    const nowMs =
-      typeof data.debugWindow?.endMs === "number"
-        ? data.debugWindow.endMs
-        : Date.now();
-
-    // Build tables
-    buildTable(positionsContainer, positions, { type: "positions", nowMs });
-    buildTable(closedContainer, closed, { type: "closed" });
-
+      const positions = data.positions || data.openPositions || data.open || [];
+      const closed    = data.closed    || data.closedTrades || data.trades || [];
+    
+      const positionsContainer = document.getElementById("positionsTableContainer");
+      const closedContainer    = document.getElementById("closedTableContainer");
+      const cashContainer      = document.getElementById("cashTableContainer");
+    
+      // Prefer frontendOpenOrders if you add that later, for now:
       const openOrders = data.openOrders || data.orders || [];
+    
+      // Use backend "now" if available, else browser clock
+      const nowMs =
+        typeof data.debugWindow?.endMs === "number"
+          ? data.debugWindow.endMs
+          : Date.now();
+    
+      // 🔹 Build TP/SL coverage map per coin
+      const slTpByCoin = buildSlTpByCoin(positions, openOrders);
+    
+      // 🔹 Build tables (positions gets slTpByCoin)
+      buildTable(positionsContainer, positions, {
+        type: "positions",
+        nowMs,
+        slTpByCoin,
+      });
+    
+      buildTable(closedContainer, closed, {
+        type: "closed",
+        nowMs,
+      });
+    
+      // 🔹 Open orders tab
       renderOpenOrders(openOrders);
-      document.getElementById("ordersCount").textContent = `(${openOrders.length})`;
-
-      // Filter funding events once
+    
+      // 🔹 Funding events
       fundingEventsAll = (data.fundingEvents || [])
         .filter(ev => ev.kind === "perpTransfer")
         .sort((a, b) => b.time - a.time); // newest first
-
+    
       fundingPage = 0;
       renderFundingTable(cashContainer);
-
-      // Update tab counts
+    
+      // 🔹 Tab counts
       document.getElementById("positionsCount").textContent = `(${positions.length})`;
-      document.getElementById("closedCount").textContent = `(${closed.length})`;
-      document.getElementById("cashCount").textContent = `(${fundingEventsAll.length})`;
+      document.getElementById("closedCount").textContent    = `(${closed.length})`;
+      document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
     }
 
     // --- Perp balance series ---
