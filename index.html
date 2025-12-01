@@ -557,6 +557,10 @@
             <span>Closed trades</span>
             <span class="tab-count" id="closedCount">(0)</span>
           </button>
+          <button type="button" class="tab-pill" id="tab-orders">
+            <span>Open orders</span>
+            <span class="tab-count" id="ordersCount">(0)</span>
+          </button>
           <button type="button" class="tab-pill" id="tab-cash">
             <span>Deposits / withdrawals</span>
             <span class="tab-count" id="cashCount">(0)</span>
@@ -576,6 +580,11 @@
           <div class="table-inner-scroll" id="closedBlock" style="display:none;">
             <div id="closedTableContainer" style="padding:10px; font-size:0.78rem; color:var(--muted);">
               No trades yet. Run a search above.
+            </div>
+          </div>
+          <div class="table-inner-scroll" id="ordersBlock" style="display:none;">
+            <div id="ordersTableContainer" style="padding:10px; font-size:0.78rem; color:var(--muted);">
+              No open orders yet. Run a search above.
             </div>
           </div>
           <div class="table-inner-scroll" id="cashBlock" style="display:none;">
@@ -939,6 +948,76 @@ function buildTable(container, rows, opts = {}) {
     container.appendChild(nav);
   }
 
+  function renderOpenOrders(openOrders) {
+  const container = document.getElementById("ordersTableContainer");
+  const countSpan = document.getElementById("ordersCount");
+  if (!container || !countSpan) return;
+
+  if (!openOrders || openOrders.error) {
+    container.innerHTML = `
+      <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
+        No open orders.
+      </div>`;
+    countSpan.textContent = "(0)";
+    return;
+  }
+
+  const list = Array.isArray(openOrders) ? openOrders : [];
+  countSpan.textContent = `(${list.length})`;
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
+        No open orders yet.
+      </div>`;
+    return;
+  }
+
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>Coin</th>
+          <th>Side</th>
+          <th>Price</th>
+          <th>Size</th>
+          <th>Notional</th>
+          <th>Placed</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  for (const o of list) {
+    const side =
+      o.side === "b" ? "Buy" :
+      o.side === "a" ? "Sell" :
+      (o.side || "-").toString().toUpperCase();
+
+    const px  = Number(o.px);
+    const sz  = Number(o.sz);
+    const notional = Number.isFinite(px) && Number.isFinite(sz) ? px * sz : null;
+
+    const ts = o.ts
+      ? new Date(o.ts).toISOString().slice(5, 16).replace("T", " ")
+      : "-";
+
+    html += `
+      <tr>
+        <td>${o.coin ?? "-"}</td>
+        <td>${side}</td>
+        <td>${Number.isFinite(px) ? px.toPrecision(6) : "-"}</td>
+        <td>${Number.isFinite(sz) ? sz.toFixed(2) : "-"}</td>
+        <td>${Number.isFinite(notional) ? notional.toFixed(2) : "-"}</td>
+        <td>${ts}</td>
+      </tr>
+    `;
+  }
+
+  html += "</tbody></table>";
+  container.innerHTML = html;
+}
+
 function setDetailMode(isDetail) {
   const summaryCard = document.getElementById("summary-card");
   const tablesCard = document.getElementById("tables-card");
@@ -979,42 +1058,41 @@ function setDetailMode(isDetail) {
   }
 }
 
-  function switchTab(tab) {
-    activeTab = tab;
-    const posTab = document.getElementById("tab-positions");
-    const closedTab = document.getElementById("tab-closed");
-    const cashTab = document.getElementById("tab-cash");
-    const positionsBlock = document.getElementById("positionsBlock");
-    const closedBlock = document.getElementById("closedBlock");
-    const cashBlock = document.getElementById("cashBlock");
-    const title = document.getElementById("activeTableTitle");
+function setActiveTable(table) {
+  activeTab = table;
 
-    if (tab === "positions") {
-      posTab.classList.add("tab-pill-active");
-      closedTab.classList.remove("tab-pill-active");
-      cashTab.classList.remove("tab-pill-active");
-      positionsBlock.style.display = "";
-      closedBlock.style.display = "none";
-      cashBlock.style.display = "none";
-      title.textContent = "Open positions";
-    } else if (tab === "closed") {
-      closedTab.classList.add("tab-pill-active");
-      posTab.classList.remove("tab-pill-active");
-      cashTab.classList.remove("tab-pill-active");
-      closedBlock.style.display = "";
-      positionsBlock.style.display = "none";
-      cashBlock.style.display = "none";
-      title.textContent = "Closed trades";
-    } else {
-      cashTab.classList.add("tab-pill-active");
-      posTab.classList.remove("tab-pill-active");
-      closedTab.classList.remove("tab-pill-active");
-      cashBlock.style.display = "";
-      positionsBlock.style.display = "none";
-      closedBlock.style.display = "none";
-      title.textContent = "Deposits / withdrawals";
+  const blocks = {
+    positions: "positionsBlock",
+    closed: "closedBlock",
+    orders: "ordersBlock",      // 🔹 new
+    cash: "cashBlock",
+  };
+
+  const labels = {
+    positions: "Open positions",
+    closed: "Closed trades",
+    orders: "Open orders",      // 🔹 new
+    cash: "Deposits / withdrawals",
+  };
+
+  // Toggle block visibility + active pill
+  for (const key of Object.keys(blocks)) {
+    const block = document.getElementById(blocks[key]);
+    const tabBtn = document.getElementById("tab-" + key);
+
+    if (block) {
+      block.style.display = key === table ? "" : "none";
+    }
+    if (tabBtn) {
+      tabBtn.classList.toggle("tab-pill-active", key === table);
     }
   }
+
+  const titleEl = document.getElementById("activeTableTitle");
+  if (titleEl && labels[table]) {
+    titleEl.textContent = labels[table];
+  }
+}
 
   function formatEquityLabel(ts, range) {
     const d = new Date(ts);
@@ -1327,7 +1405,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
   }
 
   setDetailMode(true);
-  switchTab("positions");
+  setActiveTable("positions");
 
   // 🔹 Use hardcoded Worker URL instead of DOM input
   let baseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "");
@@ -1337,7 +1415,9 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     encodeURIComponent(account) +
     "&period=" +
     encodeURIComponent(period) +
-    (updateTables ? "&positions=1&closed=1&entry=1" : "&positions=0&closed=0");
+    (updateTables
+      ? "&positions=1&closed=1&entry=1&orders=1"
+      : "&positions=0&closed=0&orders=0");
 
   statusEl.textContent = "Fetching from " + url + " …";
   statusEl.className = "status";
@@ -1489,6 +1569,9 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     // Build tables
     buildTable(positionsContainer, positions, { type: "positions", nowMs });
     buildTable(closedContainer, closed, { type: "closed" });
+
+      const openOrders = data.openOrders || data.orders || [];
+      renderOpenOrders(openOrders);
           
       // Filter funding events once
       fundingEventsAll = (data.fundingEvents || [])
@@ -1587,16 +1670,17 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load detail page automatically if URL contains ?account=
   if (accountParam) {
     setDetailMode(true);
-    switchTab("positions");
+    setActiveTable("positions");
     runFetch(true, currentRange, { updateTables: true });
   } else {
     setDetailMode(false);
   }
 
   // Tab switching
-  document.getElementById("tab-positions").addEventListener("click", () => switchTab("positions"));
-  document.getElementById("tab-closed").addEventListener("click", () => switchTab("closed"));
-  document.getElementById("tab-cash").addEventListener("click", () => switchTab("cash"));
+  document.getElementById("tab-positions").addEventListener("click", () => setActiveTable("positions"));
+  document.getElementById("tab-closed").addEventListener("click", () => setActiveTable("closed"));
+  document.getElementById("tab-orders").addEventListener("click", () => setActiveTable("orders"));  // 🔹 NEW
+  document.getElementById("tab-cash").addEventListener("click", () => setActiveTable("cash"));
 
   // Chart mode toggle
   const chartTabPnl = document.getElementById("chart-tab-pnl");
