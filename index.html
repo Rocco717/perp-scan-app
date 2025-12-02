@@ -471,17 +471,34 @@
 
     <!-- 🔹 Summary + cashflows now live in the top card -->
     <div class="grid-2" id="detail-summary-row" style="margin-top:12px; display:none;">
+    
+      <!-- LEFT COLUMN -->
       <div>
         <div class="mini-label">
           <span>Summary</span>
           <span id="accountLabel" style="font-size:0.75rem;"></span>
         </div>
+    
         <div id="summaryBadges" class="summary-badges"></div>
+    
+        <!-- 🔹 All-time perp performance -->
+        <div class="mini-label" style="margin-top:6px;"><span>All-time (perps)</span></div>
+        <div class="summary-badges">
+          <span class="badge">
+            TWR: <span id="alltime-perp-twr">--</span>
+          </span>
+          <span class="badge">
+            ROI vs deposits: <span id="alltime-perp-roi">--</span>
+          </span>
+        </div>
       </div>
+    
+      <!-- RIGHT COLUMN -->
       <div>
         <div class="mini-label"><span>Cashflows / meta</span></div>
         <div id="summaryMeta" class="summary-badges"></div>
       </div>
+    
     </div>
 
     <div id="status" class="status"></div>
@@ -711,6 +728,13 @@
     if (mins) parts.push(mins + "m");
     if (!days && !hours && !mins) parts.push(secs + "s");
     return parts.join(" ");
+  }
+
+    // 🔹 Format % fields for all-time perp performance
+  function formatPct(v) {
+    if (v == null || !Number.isFinite(v)) return "--";
+    const sign = v >= 0 ? "+" : "";
+    return `${sign}${v.toFixed(2)}%`;
   }
 
   function formatDateTime(ts) {
@@ -1829,12 +1853,36 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       );
     }
 
+        // 🔹 All-time perps performance block (always all-time, independent of period)
+    const perf = data.perpAllTimePerf || null;
+
+    const twrText = perf ? formatPct(perf.twrPct) : "--";
+    const roiText = perf ? formatPct(perf.roiPct) : "--";
+
+    const twrEl = document.getElementById("alltime-perp-twr");
+    const roiEl = document.getElementById("alltime-perp-roi");
+
+    if (twrEl) twrEl.textContent = twrText;
+    if (roiEl) roiEl.textContent = roiText;
+
     if (!pnlBadges.length) {
       summaryBadges.innerHTML =
         '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
     } else {
       pnlBadges.forEach(b => summaryBadges.appendChild(b));
     }
+
+        // --- All-time perps performance ---
+    const perf = data.perpAllTimePerf || null;
+    
+    const twrText = perf ? formatPct(perf.twrPct) : "--";
+    const roiText = perf ? formatPct(perf.roiPct) : "--";
+    
+    const twrEl = document.getElementById("alltime-perp-twr");
+    const roiEl = document.getElementById("alltime-perp-roi");
+    
+    if (twrEl) twrEl.textContent = twrText;
+    if (roiEl) roiEl.textContent = roiText;
 
     const anySummary =
       data.summary || data.portfolioSummary || data.portfolio || data.meta || null;
