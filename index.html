@@ -1872,18 +1872,6 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       pnlBadges.forEach(b => summaryBadges.appendChild(b));
     }
 
-        // --- All-time perps performance ---
-    const perf = data.perpAllTimePerf || null;
-    
-    const twrText = perf ? formatPct(perf.twrPct) : "--";
-    const roiText = perf ? formatPct(perf.roiPct) : "--";
-    
-    const twrEl = document.getElementById("alltime-perp-twr");
-    const roiEl = document.getElementById("alltime-perp-roi");
-    
-    if (twrEl) twrEl.textContent = twrText;
-    if (roiEl) roiEl.textContent = roiText;
-
     const anySummary =
       data.summary || data.portfolioSummary || data.portfolio || data.meta || null;
 
