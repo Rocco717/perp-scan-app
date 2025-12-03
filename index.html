@@ -1330,36 +1330,29 @@ function setActiveTable(table) {
       return;
     }
 
+    // Backend already returns the correct window based on ?period.
+    // For example:
+    //   period=day   → 1D series
+    //   period=week  → 7D series
+    //   period=month → 30D series
+    //   period=90d   → 90D rolling
+    //   period=allTime → full history
+    //
+    // So we do NOT slice by time again here – we just use the series as-is.
     const dayMs = 24 * 60 * 60 * 1000;
-    const firstTs = source[0].ts;
-    const lastTs  = source[source.length - 1].ts;
-    const totalSpan = lastTs - firstTs;
 
-    // Normal range windowing
-    let cutoff = null;
-    if (range === "1d")       cutoff = lastTs - dayMs;
-    else if (range === "7d")  cutoff = lastTs - 7 * dayMs;
-    else if (range === "30d") cutoff = lastTs - 30 * dayMs;
-    else if (range === "90d") cutoff = lastTs - 90 * dayMs;
+    const filtered = source.slice();  // shallow copy
+    const totalSpan =
+      filtered.length >= 2
+        ? filtered[filtered.length - 1].ts - filtered[0].ts
+        : 0;
 
-    let filtered = source;
-    if (cutoff !== null) {
-      filtered = source.filter(p => p.ts >= cutoff);
+    const labelRange =
+      range === "1d" || totalSpan <= dayMs ? "1d" : range;
 
-      // Fallback if too few points (except 7D)
-      let minPoints = 2;
-      if (range === "1d") minPoints = 4;
-      else if (range === "30d") minPoints = 4;
-
-      if (range !== "7d" && filtered.length < minPoints) {
-        const N = Math.min(10, source.length);
-        filtered = source.slice(-N);
-      }
-    }
-
-    const labelRange = totalSpan <= dayMs ? "1d" : range;
     const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
     const values = filtered.map(p => p.value);
+
     // --- Update live value label (top-right) ---
     const liveEl = document.getElementById("chart-live-value");
     if (liveEl) {
