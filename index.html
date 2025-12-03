@@ -1663,12 +1663,9 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const roiObj = data.roi || {};
     const tradingPct   = typeof roiObj.trading_pct === "number" ? roiObj.trading_pct : null;
     const portfolioPct = typeof roiObj.portfolio_pct === "number" ? roiObj.portfolio_pct : null;
-    const balances = data.balances || {};
-
 
     const pnlBadges = [];
 
-    // 🔹 Absolute PnL badges
     if (portfolioPnl !== null) {
       const color = portfolioPnl >= 0 ? "green" : "red";
       pnlBadges.push(
@@ -1681,14 +1678,13 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         createBadge("Perp PnL", "$" + formatNumber(tradingPnl, 2), { color })
       );
     }
-
-    // 🔹 Portfolio % (keep as-is)
     if (portfolioPct !== null) {
       const color = portfolioPct >= 0 ? "green" : "red";
       pnlBadges.push(
         createBadge("Portfolio ROI", formatNumber(portfolioPct, 2) + "%", { color })
       );
     }
+    // ⛔️ No Perp ROE badge anymore – handled in the left card
 
     if (!pnlBadges.length) {
       summaryBadges.innerHTML =
@@ -1725,6 +1721,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       metaBadges.push(createBadge("Fees", "$" + formatNumber(fees, 2)));
     }
 
+    const balances = data.balances || {};
     if (balances.perp_now != null) {
       metaBadges.push(
         createBadge("Perp balance now", "$" + formatNumber(balances.perp_now, 2))
@@ -1737,13 +1734,6 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     }
 
     if (!metaBadges.length) {
-      summaryMeta.innerHTML =
-        '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
-    } else {
-      metaBadges.forEach(b => summaryMeta.appendChild(b));
-    }
-
-        if (!metaBadges.length) {
       summaryMeta.innerHTML =
         '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
     } else {
@@ -1788,7 +1778,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
           ? data.perp_pnl
           : null;
 
-      // Gating rule
+      // GATING RULE: only show ROE if start equity ≥ 100
       const showRoe =
         startValueTrading !== null &&
         startValueTrading >= 100 &&
@@ -1814,7 +1804,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
 
       roeRangeLabel.textContent = "Return on equity · " + rangeLabelText;
 
-      // Meta
+      // Meta line
       if (startValueTrading !== null && balances.perp_now != null) {
         const startStr = "$" + formatNumber(startValueTrading, 2);
         const nowStr   = "$" + formatNumber(balances.perp_now, 2);
