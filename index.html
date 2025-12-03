@@ -1,3 +1,4 @@
+@@ -1,1997 +1,2063 @@
 <!doctype html>
 <html lang="en">
 <head>
@@ -471,34 +472,17 @@
 
     <!-- 🔹 Summary + cashflows now live in the top card -->
     <div class="grid-2" id="detail-summary-row" style="margin-top:12px; display:none;">
-    
-      <!-- LEFT COLUMN -->
       <div>
         <div class="mini-label">
           <span>Summary</span>
           <span id="accountLabel" style="font-size:0.75rem;"></span>
         </div>
-    
         <div id="summaryBadges" class="summary-badges"></div>
-    
-        <!-- 🔹 All-time perp performance -->
-        <div class="mini-label" style="margin-top:6px;"><span>All-time (perps)</span></div>
-        <div class="summary-badges">
-          <span class="badge">
-            TWR: <span id="alltime-perp-twr">--</span>
-          </span>
-          <span class="badge">
-            ROI vs deposits: <span id="alltime-perp-roi">--</span>
-          </span>
-        </div>
       </div>
-    
-      <!-- RIGHT COLUMN -->
       <div>
         <div class="mini-label"><span>Cashflows / meta</span></div>
         <div id="summaryMeta" class="summary-badges"></div>
       </div>
-    
     </div>
 
     <div id="status" class="status"></div>
@@ -516,7 +500,7 @@
             <div class="card-sub" id="roeRangeLabel">Return on equity for this window.</div>
           </div>
         </div>
-      
+
         <div style="display:flex; flex-direction:column; gap:8px;">
           <div id="roeValue"
                style="font-size:1.6rem; font-weight:600; color:var(--muted);">
@@ -659,20 +643,20 @@
     function formatTokenPrice(raw) {
       const n = Number(raw);
       if (!Number.isFinite(n) || n === 0) return "";
-    
+
       const abs = Math.abs(n);
       const intPart = Math.floor(abs);
-    
+
       let decimals;
-    
+
       // --- HIGH PRICE ASSETS (≥10) → FIXED 2 DECIMALS ---
       if (intPart >= 10) {
         decimals = 2;
-    
+
       // --- MID RANGE (1–9.9) → 3 DECIMALS ---
       } else if (abs >= 1) {
         decimals = 3;
-    
+
       // --- SMALL TOKENS (<1) → more precision ---
       } else if (abs >= 0.1) {
         decimals = 4;
@@ -681,7 +665,7 @@
       } else {
         decimals = 6;
       }
-    
+
       return n.toFixed(decimals);
     }
 
@@ -728,13 +712,6 @@
     if (mins) parts.push(mins + "m");
     if (!days && !hours && !mins) parts.push(secs + "s");
     return parts.join(" ");
-  }
-
-    // 🔹 Format % fields for all-time perp performance
-  function formatPct(v) {
-    if (v == null || !Number.isFinite(v)) return "--";
-    const sign = v >= 0 ? "+" : "";
-    return `${sign}${v.toFixed(2)}%`;
   }
 
   function formatDateTime(ts) {
@@ -879,7 +856,7 @@ function buildTable(container, rows, opts = {}) {
       keys.splice(idxValue, 1);
       keys.splice(idxSide + 1, 0, "value");
     }
-  
+
     // Ensure entryTs comes before duration
     const idxEntry = keys.indexOf("entryTs");
     const idxDur = keys.indexOf("durationMs");
@@ -887,14 +864,14 @@ function buildTable(container, rows, opts = {}) {
       keys.splice(idxEntry, 1);
       keys.splice(idxDur, 0, "entryTs");
     }
-  
+
     // Put duration at the end
     const idxDuration = keys.indexOf("durationMs");
     if (idxDuration !== -1) {
       keys.splice(idxDuration, 1);
       keys.push("durationMs");
     }
-  
+
     // 🔹 INSERT: Full TP/SL column after "side"
     if (!keys.includes("fullTpSl")) {
       const idxSide2 = keys.indexOf("side");
@@ -903,7 +880,7 @@ function buildTable(container, rows, opts = {}) {
       }
     }
   }
-  
+
   if (!keys.length) {
     container.innerHTML =
       '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">Unsupported row format.</div>';
@@ -932,43 +909,43 @@ function buildTable(container, rows, opts = {}) {
       if (isPositions && k === "fullTpSl") {
         const entry = opts.slTpByCoin?.[r.coin];
         let text = "";
-      
+
         if (entry) {
           const posSize = Math.abs(Number(r.size));
-      
+
           if (Number.isFinite(posSize) && posSize > 0) {
             // "Full" = one order that closes ~100% of the position.
             // If you want tolerance, change threshold to posSize * 0.95.
             const threshold = posSize;
-      
+
             const getOrderSize = (o) => {
               const raw = o.sz ?? o.size;
               const n = Number(raw);
               return Number.isFinite(n) ? Math.abs(n) : 0;
             };
-      
+
             // Only keep orders that individually qualify as a "full exit"
             const qualifyingTps = entry.tps.filter((o) => getOrderSize(o) >= threshold);
             const qualifyingSls = entry.sls.filter((o) => getOrderSize(o) >= threshold);
-      
+
             // We only want exactly ONE full TP or SL on each side
             const tpOrder = qualifyingTps.length === 1 ? qualifyingTps[0] : null;
             const slOrder = qualifyingSls.length === 1 ? qualifyingSls[0] : null;
-      
+
             const formatPx = (o) => {
               const isTrigger = o.isTrigger === true;
-            
+
               let raw;
               if (isTrigger) {
                 raw = o.triggerPx;
               } else {
                 raw = o.px ?? o.price;
               }
-            
+
               const formatted = formatTokenPrice(raw);   // 🔥 unified dynamic decimals
               return formatted;                           // may be "" if invalid
             };
-      
+
             const parts = [];
             if (tpOrder) {
               const px = formatPx(tpOrder);
@@ -978,11 +955,11 @@ function buildTable(container, rows, opts = {}) {
               const px = formatPx(slOrder);
               if (px) parts.push(`SL $${px}`);
             }
-      
+
             text = parts.join(" | ");
           }
         }
-      
+
         td.textContent = text;
         tr.appendChild(td);
         return;
@@ -1115,7 +1092,7 @@ function buildTable(container, rows, opts = {}) {
           : (ev.hash || "");
 
       const tr = document.createElement("tr");
-      
+
       tr.innerHTML = `
         <td>${formatDateTime(ev.time)}</td>
       
@@ -1175,7 +1152,7 @@ function buildTable(container, rows, opts = {}) {
       const container = document.getElementById("ordersTableContainer");
       const countSpan = document.getElementById("ordersCount");
       if (!container || !countSpan) return;
-    
+
       if (!openOrders || openOrders.error) {
         container.innerHTML = `
           <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
@@ -1184,10 +1161,10 @@ function buildTable(container, rows, opts = {}) {
         countSpan.textContent = "(0)";
         return;
       }
-    
+
       const list = Array.isArray(openOrders) ? openOrders : [];
       countSpan.textContent = `(${list.length})`;
-    
+
       if (list.length === 0) {
         container.innerHTML = `
           <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
@@ -1195,7 +1172,7 @@ function buildTable(container, rows, opts = {}) {
           </div>`;
         return;
       }
-    
+
       let html = `
         <table>
           <thead>
@@ -1210,22 +1187,22 @@ function buildTable(container, rows, opts = {}) {
           </thead>
           <tbody>
       `;
-    
+
       for (const o of list) {
         const side =
           o.side === "b" ? "Buy" :
           o.side === "a" ? "Sell" :
           (o.side || "-").toString().toUpperCase();
-    
+
         const rawPx = o.px ?? o.price;
         const px    = Number(rawPx);
         const sz    = Number(o.sz);
         const notional = Number.isFinite(px) && Number.isFinite(sz) ? px * sz : null;
-    
+
         const ts = o.ts ? formatDateTime(o.ts) : "-";
-    
+
         const pxDisplay = formatTokenPrice(rawPx);
-    
+
         html += `
           <tr>
             <td>${o.coin ?? "-"}</td>
@@ -1237,7 +1214,7 @@ function buildTable(container, rows, opts = {}) {
           </tr>
         `;
       }
-    
+
       html += "</tbody></table>";
       container.innerHTML = html;
     }
@@ -1409,13 +1386,15 @@ function setActiveTable(table) {
       }
     }
 
+      // --- Update ROE card (always based on equity, not PnL) ---
       // --- Update ROE card: pure perp trading ROE for this window ---
       (function updateRoeCard() {
         const roeValueEl = document.getElementById("roeValue");
         const roeRangeLabelEl = document.getElementById("roeRangeLabel");
-    
+
         if (!roeValueEl || !roeRangeLabelEl) return;
-    
+
+        // If we have no equity series, clear the card
         // If no equity data at all, bail
         if (!Array.isArray(equitySeriesAll) || equitySeriesAll.length < 2) {
           roeValueEl.textContent = "--";
@@ -1423,7 +1402,11 @@ function setActiveTable(table) {
           roeRangeLabelEl.textContent = "Return on equity for this window.";
           return;
         }
-    
+
+        const equitySource = equitySeriesAll.map(pt => ({
+          ts: Number(pt.ts),
+          value: Number(pt.equity),
+        })).filter(p => Number.isFinite(p.ts) && Number.isFinite(p.value))
         // Normalize equity series
         const equitySource = equitySeriesAll
           .map(pt => ({
@@ -1432,14 +1415,15 @@ function setActiveTable(table) {
           }))
           .filter(p => Number.isFinite(p.ts) && Number.isFinite(p.value))
           .sort((a, b) => a.ts - b.ts);
-    
+
         if (!equitySource.length) {
           roeValueEl.textContent = "--";
           roeValueEl.style.color = "var(--muted)";
           roeRangeLabelEl.textContent = "Return on equity for this window.";
           return;
         }
-    
+
+        let equityFiltered = equitySource;
         // Normalize PnL series (if available)
         const pnlSource = Array.isArray(pnlSeriesAll)
           ? pnlSeriesAll
@@ -1450,7 +1434,12 @@ function setActiveTable(table) {
               .filter(p => Number.isFinite(p.ts) && Number.isFinite(p.value))
               .sort((a, b) => a.ts - b.ts)
           : [];
-    
+
+        if (cutoff !== null) {
+          equityFiltered = equitySource.filter(p => p.ts >= cutoff);
+          if (equityFiltered.length < 2) {
+            const N = Math.min(10, equitySource.length);
+            equityFiltered = equitySource.slice(-N);
         const getWindow = (series) => {
           if (!Array.isArray(series) || !series.length) return [];
           if (cutoff === null) return series;
@@ -1472,7 +1461,8 @@ function setActiveTable(table) {
           roeRangeLabelEl.textContent = "Return on equity for this window.";
           return;
         }
-    
+
+        const roe = computeRoeFromEquitySeries(equityFiltered);
         // 🔹 Starting equity: first positive value in window (or first if all <= 0)
         let startEquity = null;
         for (const p of equityWindow) {
@@ -1514,25 +1504,26 @@ function setActiveTable(table) {
             roe = ((eqEnd - eqStart) / eqStart) * 100;
           }
         }
-    
+
         // Map range → label
         let rangeLabel = "All-time";
         if (range === "1d") rangeLabel = "1D";
         else if (range === "7d") rangeLabel = "7D";
         else if (range === "30d") rangeLabel = "30D";
         else if (range === "90d") rangeLabel = "90D";
-    
+
         roeRangeLabelEl.textContent = `Perp ROE for ${rangeLabel} window.`;
-    
+
+        if (roe == null) {
         if (roe === null || !Number.isFinite(roe)) {
           roeValueEl.textContent = "--";
           roeValueEl.style.color = "var(--muted)";
           return;
         }
-    
+
         const sign = roe >= 0 ? "+" : "-";
         const absRoe = Math.abs(roe).toFixed(2);
-    
+
         roeValueEl.textContent = `${sign}${absRoe}%`;
         roeValueEl.style.color =
           roe > 0 ? "var(--success)"
@@ -1853,18 +1844,6 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       );
     }
 
-        // 🔹 All-time perps performance block (always all-time, independent of period)
-    const perf = data.perpAllTimePerf || null;
-
-    const twrText = perf ? formatPct(perf.twrPct) : "--";
-    const roiText = perf ? formatPct(perf.roiPct) : "--";
-
-    const twrEl = document.getElementById("alltime-perp-twr");
-    const roiEl = document.getElementById("alltime-perp-roi");
-
-    if (twrEl) twrEl.textContent = twrText;
-    if (roiEl) roiEl.textContent = roiText;
-
     if (!pnlBadges.length) {
       summaryBadges.innerHTML =
         '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
@@ -1922,46 +1901,46 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     if (updateTables) {
       const positions = data.positions || data.openPositions || data.open || [];
       const closed    = data.closed    || data.closedTrades || data.trades || [];
-    
+
       const positionsContainer = document.getElementById("positionsTableContainer");
       const closedContainer    = document.getElementById("closedTableContainer");
       const cashContainer      = document.getElementById("cashTableContainer");
-    
+
       // Prefer frontendOpenOrders if you add that later, for now:
       const openOrders = data.openOrders || data.orders || [];
-    
+
       // Use backend "now" if available, else browser clock
       const nowMs =
         typeof data.debugWindow?.endMs === "number"
           ? data.debugWindow.endMs
           : Date.now();
-    
+
       // 🔹 Build TP/SL coverage map per coin
       const slTpByCoin = buildSlTpByCoin(positions, openOrders);
-    
+
       // 🔹 Build tables (positions gets slTpByCoin)
       buildTable(positionsContainer, positions, {
         type: "positions",
         nowMs,
         slTpByCoin,
       });
-    
+
       buildTable(closedContainer, closed, {
         type: "closed",
         nowMs,
       });
-    
+
       // 🔹 Open orders tab
       renderOpenOrders(openOrders);
-    
+
       // 🔹 Funding events
       fundingEventsAll = (data.fundingEvents || [])
         .filter(ev => ev.kind === "perpTransfer")
         .sort((a, b) => b.time - a.time); // newest first
-    
+
       fundingPage = 0;
       renderFundingTable(cashContainer);
-    
+
       // 🔹 Tab counts
       document.getElementById("positionsCount").textContent = `(${positions.length})`;
       document.getElementById("closedCount").textContent    = `(${closed.length})`;
