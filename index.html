@@ -655,15 +655,26 @@
 
   function createBadge(label, value, options = {}) {
     if (value === null || value === undefined || value === "") return null;
+
     const badge = document.createElement("div");
     badge.className = "badge";
+
     const labelSpan = document.createElement("span");
     labelSpan.textContent = label;
+
     const valueSpan = document.createElement("span");
     valueSpan.className = "badge-strong";
+
     if (options.color === "green") valueSpan.classList.add("pill-green");
     if (options.color === "red") valueSpan.classList.add("pill-red");
+
     valueSpan.textContent = value;
+
+    // Optional tooltip (e.g. start/end equity)
+    if (options.title) {
+      badge.title = options.title;
+    }
+
     badge.appendChild(labelSpan);
     badge.appendChild(valueSpan);
     return badge;
@@ -1635,9 +1646,12 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const roiObj = data.roi || {};
     const tradingPct   = typeof roiObj.trading_pct === "number" ? roiObj.trading_pct : null;
     const portfolioPct = typeof roiObj.portfolio_pct === "number" ? roiObj.portfolio_pct : null;
+    const balances = data.balances || {};
+
 
     const pnlBadges = [];
 
+    // 🔹 Absolute PnL badges
     if (portfolioPnl !== null) {
       const color = portfolioPnl >= 0 ? "green" : "red";
       pnlBadges.push(
@@ -1650,16 +1664,48 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         createBadge("Perp PnL", "$" + formatNumber(tradingPnl, 2), { color })
       );
     }
+
+    // 🔹 Portfolio % (keep as-is)
     if (portfolioPct !== null) {
       const color = portfolioPct >= 0 ? "green" : "red";
       pnlBadges.push(
         createBadge("Portfolio ROI", formatNumber(portfolioPct, 2) + "%", { color })
       );
     }
-    if (tradingPct !== null) {
-      const color = tradingPct >= 0 ? "green" : "red";
+
+    // 🔹 Simple Perp ROE for the selected window
+    const periodIsAllTime =
+      period === "allTime" || period === "perpAllTime";
+
+    const startValueTrading =
+      typeof roiObj.start_value_trading === "number"
+        ? roiObj.start_value_trading
+        : null;
+
+    if (!periodIsAllTime) {
+      // Default display when we can't compute a meaningful ROE
+      let valueText = "--";
+      let options = {};
+
+      if (
+        typeof roiObj.trading_pct === "number" &&
+        startValueTrading !== null &&
+        startValueTrading > 0
+      ) {
+        const pct = roiObj.trading_pct;
+        valueText = formatNumber(pct, 2) + "%";
+        options.color = pct >= 0 ? "green" : "red";
+
+        // Optional: tooltip with start / end equity
+        if (balances.perp_now != null) {
+          const startStr = "$" + formatNumber(startValueTrading, 2);
+          const endStr   = "$" + formatNumber(balances.perp_now, 2);
+          options.title  = `Start perp equity: ${startStr}\nEnd perp equity: ${endStr}`;
+        }
+      }
+
       pnlBadges.push(
-        createBadge("Perp ROI", formatNumber(tradingPct, 2) + "%", { color })
+        createBadge("Perp ROE", valueText, options)
       );
     }
 
@@ -1698,7 +1744,6 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       metaBadges.push(createBadge("Fees", "$" + formatNumber(fees, 2)));
     }
 
-    const balances = data.balances || {};
     if (balances.perp_now != null) {
       metaBadges.push(
         createBadge("Perp balance now", "$" + formatNumber(balances.perp_now, 2))
