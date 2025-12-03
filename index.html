@@ -492,9 +492,26 @@
            <!-- NEW TOP ROW: snapshot (left) + chart (right) -->
       <div class="top-row">
 
-      <!-- LEFT: Empty placeholder card to preserve layout -->
-      <section class="card" id="summary-card" style="display:none; padding:0; height:100%;">
-      </section>
+    <!-- LEFT: Perp ROE card -->
+    <section class="card" id="summary-card" style="display:none; height:100%;">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Perp ROE</div>
+          <div class="card-sub" id="roeRangeLabel">Return on equity for this window.</div>
+        </div>
+      </div>
+    
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div id="roeValue"
+             style="font-size:1.6rem; font-weight:600; color:var(--muted);">
+          --
+        </div>
+        <div id="roeMeta"
+             style="font-size:0.78rem; color:var(--muted);">
+          Uses perp account value at the start and end of the selected timeframe.
+        </div>
+      </div>
+    </section>
 
         <!-- RIGHT: Perp PnL / balance chart -->
         <section class="card" id="chart-card" style="display:none;">
@@ -1673,48 +1690,6 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       );
     }
 
-    // 🔹 Simple Perp ROE with reliability gating
-    const periodIsAllTime =
-      period === "allTime" || period === "perpAllTime";
-    
-    const startValueTrading =
-      typeof roiObj.start_value_trading === "number"
-        ? roiObj.start_value_trading
-        : null;
-    
-    if (!periodIsAllTime) {
-      let valueText = "--";
-      let options = {};
-    
-      // ======================================================
-      // FINAL RULE:
-      //   if start_equity < 1  → hide ROE
-      //   if start_equity < 100 → hide ROE (too noisy)
-      //   else → show backend trading_pct
-      // ======================================================
-      const showRoe =
-        startValueTrading !== null &&
-        startValueTrading >= 100 &&             // key rule
-        typeof roiObj.trading_pct === "number";
-    
-      if (showRoe) {
-        const pct = roiObj.trading_pct;
-        valueText = formatNumber(pct, 2) + "%";
-        options.color = pct >= 0 ? "green" : "red";
-    
-        // Tooltip with start/end equity
-        if (balances.perp_now != null) {
-          const startStr = "$" + formatNumber(startValueTrading, 2);
-          const endStr   = "$" + formatNumber(balances.perp_now, 2);
-          options.title  = `Start perp equity: ${startStr}\nEnd perp equity: ${endStr}`;
-        }
-      }
-    
-      pnlBadges.push(
-        createBadge("Perp ROE", valueText, options)
-      );
-    }
-
     if (!pnlBadges.length) {
       summaryBadges.innerHTML =
         '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
@@ -1767,6 +1742,96 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     } else {
       metaBadges.forEach(b => summaryMeta.appendChild(b));
     }
+
+        if (!metaBadges.length) {
+      summaryMeta.innerHTML =
+        '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
+    } else {
+      metaBadges.forEach(b => summaryMeta.appendChild(b));
+    }
+
+    // ----------------------------
+    // Perp ROE card (left of chart)
+    // ----------------------------
+    (function updateRoeCard() {
+      const summaryCard   = document.getElementById("summary-card");
+      const roeValueEl    = document.getElementById("roeValue");
+      const roeRangeLabel = document.getElementById("roeRangeLabel");
+      const roeMetaEl     = document.getElementById("roeMeta");
+
+      if (!summaryCard || !roeValueEl || !roeRangeLabel || !roeMetaEl) return;
+
+      const periodIsAllTime =
+        period === "allTime" || period === "perpAllTime";
+
+      // Hide for all-time
+      if (periodIsAllTime) {
+        summaryCard.style.display = "none";
+        return;
+      }
+
+      // Show card for windowed views
+      summaryCard.style.display = "";
+
+      const startValueTrading =
+        typeof roiObj.start_value_trading === "number"
+          ? roiObj.start_value_trading
+          : null;
+
+      const tradingPct =
+        typeof roiObj.trading_pct === "number"
+          ? roiObj.trading_pct
+          : null;
+
+      const tradingPnl =
+        typeof data.perp_pnl === "number"
+          ? data.perp_pnl
+          : null;
+
+      // Gating rule
+      const showRoe =
+        startValueTrading !== null &&
+        startValueTrading >= 100 &&
+        tradingPct !== null;
+
+      let roeText = "--";
+      let roeColor = "var(--muted)";
+
+      if (showRoe) {
+        roeText = formatNumber(tradingPct, 2) + "%";
+        roeColor = tradingPct >= 0 ? "var(--success)" : "var(--danger)";
+      }
+
+      roeValueEl.textContent = roeText;
+      roeValueEl.style.color = roeColor;
+
+      // Window label
+      let rangeLabelText = "All time";
+      if (currentRange === "1d")  rangeLabelText = "Last 24 hours";
+      else if (currentRange === "7d")  rangeLabelText = "Last 7 days";
+      else if (currentRange === "30d") rangeLabelText = "Last 30 days";
+      else if (currentRange === "90d") rangeLabelText = "Last 90 days";
+
+      roeRangeLabel.textContent = "Return on equity · " + rangeLabelText;
+
+      // Meta
+      if (startValueTrading !== null && balances.perp_now != null) {
+        const startStr = "$" + formatNumber(startValueTrading, 2);
+        const nowStr   = "$" + formatNumber(balances.perp_now, 2);
+
+        let metaText = `Start: ${startStr} · Now: ${nowStr}`;
+
+        if (tradingPnl !== null) {
+          const pnlStr = "$" + formatNumber(tradingPnl, 2);
+          metaText += ` · Perp PnL: ${tradingPnl >= 0 ? "+" : ""}${pnlStr}`;
+        }
+
+        roeMetaEl.textContent = metaText;
+      } else {
+        roeMetaEl.textContent =
+          "ROE is only shown when starting perp equity is at least $100 for this window.";
+      }
+    })();
 
     if (updateTables) {
       const positions = data.positions || data.openPositions || data.open || [];
