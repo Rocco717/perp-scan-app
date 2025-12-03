@@ -1388,7 +1388,17 @@ function setActiveTable(table) {
 
     const labelRange = totalSpan <= dayMs ? "1d" : range;
     const labels = filtered.map(p => formatEquityLabel(p.ts, labelRange));
-    const values = filtered.map(p => p.value);
+
+    // Start from raw values
+    let values = filtered.map(p => p.value);
+
+    // 🔹 For 1D Perp PnL, rebase to 0 at the first visible point
+    // so the 1D graph shows "PnL over the last day", not "PnL since inception".
+    if (activeChartMode === "pnl" && range === "1d" && values.length > 0) {
+      const offset = values[0];
+      values = values.map(v => v - offset);
+    }
+
     // --- Update live value label (top-right) ---
     const liveEl = document.getElementById("chart-live-value");
     if (liveEl) {
