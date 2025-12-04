@@ -492,26 +492,77 @@
            <!-- NEW TOP ROW: snapshot (left) + chart (right) -->
       <div class="top-row">
 
-    <!-- LEFT: Perp ROE card -->
-    <section class="card" id="summary-card" style="display:none; height:100%;">
-      <div class="card-header">
-        <div>
-          <div class="card-title">Perp ROE</div>
-          <div class="card-sub" id="roeRangeLabel">Return on equity for this window.</div>
+      <!-- LEFT: Perp ROE + Directional bias -->
+      <section class="card" id="summary-card" style="display:none; height:100%;">
+      
+        <!-- ROE header -->
+        <div class="card-header">
+          <div>
+            <div class="card-title">Perp ROE</div>
+            <div class="card-sub" id="roeRangeLabel">Return on equity for this window.</div>
+          </div>
         </div>
-      </div>
-    
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div id="roeValue"
-             style="font-size:1.6rem; font-weight:600; color:var(--muted);">
-          --
+      
+        <!-- ROE section -->
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;">
+          <div id="roeValue"
+               style="font-size:1.6rem; font-weight:600; color:var(--muted);">
+            --
+          </div>
+          <div id="roeMeta"
+               style="font-size:0.78rem; color:var(--muted);">
+            Uses perp account value at the start and end of the selected timeframe.
+          </div>
         </div>
-        <div id="roeMeta"
-             style="font-size:0.78rem; color:var(--muted);">
-          Uses perp account value at the start and end of the selected timeframe.
+      
+        <!-- DIRECTIONAL BIAS (closed trades) -->
+        <div class="mini-label" style="margin-top:10px;">
+          <span>Directional bias (closed)</span>
         </div>
-      </div>
-    </section>
+      
+        <!-- Bar -->
+        <div id="directionalBiasBar"
+             style="
+               margin-top:4px;
+               height:8px;
+               border-radius:999px;
+               overflow:hidden;
+               background:#111;
+             ">
+          <div id="directionalBiasLong"
+               style="
+                 height:100%;
+                 float:left;
+                 width:50%;
+                 background:var(--success);
+               "></div>
+          <div id="directionalBiasShort"
+               style="
+                 height:100%;
+                 float:left;
+                 width:50%;
+                 background:var(--danger);
+               "></div>
+        </div>
+      
+        <!-- Labels under bar -->
+        <div style="
+              display:flex;
+              justify-content:space-between;
+              margin-top:4px;
+              font-size:0.78rem;
+            ">
+          <span id="directionalBiasLongLabel">Long --%</span>
+          <span id="directionalBiasShortLabel">Short --%</span>
+        </div>
+      
+        <!-- Meta -->
+        <div id="directionalBiasMeta"
+             style="font-size:0.74rem; color:var(--muted); margin-top:5px;">
+          No fully closed trades in this period.
+        </div>
+      
+      </section>
 
         <!-- RIGHT: Perp PnL / balance chart -->
         <section class="card" id="chart-card" style="display:none;">
@@ -1294,6 +1345,63 @@ function setActiveTable(table) {
   }
 }
 
+  function updateDirectionalBias(data) {
+  const bar        = document.getElementById("directionalBiasBar");
+  const longSeg    = document.getElementById("directionalBiasLong");
+  const shortSeg   = document.getElementById("directionalBiasShort");
+  const longLabel  = document.getElementById("directionalBiasLongLabel");
+  const shortLabel = document.getElementById("directionalBiasShortLabel");
+  const metaEl     = document.getElementById("directionalBiasMeta");
+
+  if (!bar || !longSeg || !shortSeg || !longLabel || !shortLabel || !metaEl) {
+    return;
+  }
+
+  const db = data.directionalBias || null;
+
+  // No realized bias for this window → show “no trades” text and hide bar
+  if (!db || typeof db.biasLong !== "number" || typeof db.biasShort !== "number") {
+    bar.style.visibility = "hidden";
+    longSeg.style.width = "0%";
+    shortSeg.style.width = "0%";
+    longLabel.textContent  = "Long --%";
+    shortLabel.textContent = "Short --%";
+    metaEl.textContent = "No fully closed trades in this period.";
+    return;
+  }
+
+  bar.style.visibility = "visible";
+
+  // Clamp to [0,1] just in case
+  const biasLong  = Math.max(0, Math.min(1, db.biasLong));
+  const biasShort = Math.max(0, Math.min(1, db.biasShort));
+
+  const longPct  = biasLong  * 100;
+  const shortPct = biasShort * 100;
+
+  // Bar segments
+  longSeg.style.width  = longPct.toFixed(1) + "%";
+  shortSeg.style.width = shortPct.toFixed(1) + "%";
+
+  // Labels
+  longLabel.textContent  = `Long ${formatNumber(longPct, 1)}%`;
+  shortLabel.textContent = `Short ${formatNumber(shortPct, 1)}%`;
+
+  // Meta notionals (approx volume)
+  const longNotional  = Number(db.longNotional  ?? 0);
+  const shortNotional = Number(db.shortNotional ?? 0);
+
+  if (longNotional > 0 || shortNotional > 0) {
+    const longStr  = "$" + formatNumber(longNotional, 0);
+    const shortStr = "$" + formatNumber(shortNotional, 0);
+    metaEl.textContent =
+      `Closed long ~${longStr} · Closed short ~${shortStr}`;
+  } else {
+    metaEl.textContent =
+      "Based on realized volume from fully closed trades only.";
+  }
+}
+
   function formatEquityLabel(ts, range) {
     const d = new Date(ts);
     if (range === "1d") {
@@ -1820,6 +1928,9 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
           "ROE is only shown when starting perp equity is at least $100 and not for all-time.";
       }
     })();
+
+    // Directional bias (closed) panel
+    updateDirectionalBias(data);
 
     if (updateTables) {
       const positions = data.positions || data.openPositions || data.open || [];
