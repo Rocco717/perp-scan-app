@@ -2143,11 +2143,6 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     return;
   }
 
-  // 🔹 Keep latest state available for future refactors
-  appState.account = account;
-  appState.period  = uiRange;   // UI range, e.g. "90d"
-  appState.data    = data;
-
   // URL param handling (account + period)
   const currentUrl = new URL(window.location.href);
   const hasAccountInUrl = !!currentUrl.searchParams.get("account");
@@ -2198,6 +2193,11 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       statusEl.className = "status status-error";
       return;
     }
+
+      // 🔹 Keep latest state available for future refactors
+      appState.account = account;
+      appState.period  = uiRange;   // UI range, e.g. "90d"
+      appState.data    = data;
 
     statusEl.textContent = "OK · Response received.";
     statusEl.className = "status status-ok";
