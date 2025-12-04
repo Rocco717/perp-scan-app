@@ -1345,7 +1345,7 @@ function setActiveTable(table) {
   }
 }
 
-  function updateDirectionalBias(data) {
+function updateDirectionalBias(data) {
   const bar        = document.getElementById("directionalBiasBar");
   const longSeg    = document.getElementById("directionalBiasLong");
   const shortSeg   = document.getElementById("directionalBiasShort");
@@ -1357,27 +1357,80 @@ function setActiveTable(table) {
     return;
   }
 
-  const db = data.directionalBias || null;
+  const db = data && data.directionalBias ? data.directionalBias : null;
 
-  // No realized bias for this window → show “no trades” text and hide bar
-  if (!db || typeof db.biasLong !== "number" || typeof db.biasShort !== "number") {
+  // Helper to reset UI to "no data"
+  function showNoData() {
     bar.style.visibility = "hidden";
-    longSeg.style.width = "0%";
+    longSeg.style.width  = "0%";
     shortSeg.style.width = "0%";
     longLabel.textContent  = "Long --%";
     shortLabel.textContent = "Short --%";
     metaEl.textContent = "No fully closed trades in this period.";
+  }
+
+  if (!db || typeof db !== "object") {
+    showNoData();
     return;
   }
 
+  // --- Determine long/short fractions in [0,1] ---
+
+  let longFrac  = null;
+  let shortFrac = null;
+
+  // 1) New contract: ratio + bias ("long" / "short" / "neutral")
+  if (typeof db.ratio === "number") {
+    // ratio is long share; backend also gives db.bias but we don't strictly need it
+    longFrac = Math.max(0, Math.min(1, db.ratio));
+    shortFrac = 1 - longFrac;
+
+  // 2) Old fields: biasLong / biasShort
+  } else if (typeof db.biasLong === "number" || typeof db.biasShort === "number") {
+    const bL = Math.max(0, Number(db.biasLong  ?? 0));
+    const bS = Math.max(0, Number(db.biasShort ?? 0));
+    const sum = bL + bS;
+    if (sum > 0) {
+      longFrac  = bL / sum;
+      shortFrac = bS / sum;
+    }
+
+  // 3) From notionals only: longNotional / shortNotional
+  } else if (db.longNotional != null || db.shortNotional != null) {
+    const nL = Math.max(0, Number(db.longNotional  ?? 0));
+    const nS = Math.max(0, Number(db.shortNotional ?? 0));
+    const total = nL + nS;
+    if (total > 0) {
+      longFrac  = nL / total;
+      shortFrac = nS / total;
+    }
+  }
+
+  if (
+    longFrac === null ||
+    shortFrac === null ||
+    !Number.isFinite(longFrac) ||
+    !Number.isFinite(shortFrac)
+  ) {
+    showNoData();
+    return;
+  }
+
+  // Clamp again for safety
+  longFrac  = Math.max(0, Math.min(1, longFrac));
+  shortFrac = Math.max(0, Math.min(1, shortFrac));
+
+  // If both are ~0, treat as no data
+  if (longFrac === 0 && shortFrac === 0) {
+    showNoData();
+    return;
+  }
+
+  // --- Convert to % ---
+  const longPct  = longFrac * 100;
+  const shortPct = shortFrac * 100;
+
   bar.style.visibility = "visible";
-
-  // Clamp to [0,1] just in case
-  const biasLong  = Math.max(0, Math.min(1, db.biasLong));
-  const biasShort = Math.max(0, Math.min(1, db.biasShort));
-
-  const longPct  = biasLong  * 100;
-  const shortPct = biasShort * 100;
 
   // Bar segments
   longSeg.style.width  = longPct.toFixed(1) + "%";
@@ -1387,16 +1440,16 @@ function setActiveTable(table) {
   longLabel.textContent  = `Long ${formatNumber(longPct, 1)}%`;
   shortLabel.textContent = `Short ${formatNumber(shortPct, 1)}%`;
 
-  // Meta notionals (approx volume)
+  // --- Meta line with notionals if available ---
   const longNotional  = Number(db.longNotional  ?? 0);
   const shortNotional = Number(db.shortNotional ?? 0);
 
-  if (longNotional > 0 || shortNotional > 0) {
+  if ((longNotional > 0 || shortNotional > 0) && Number.isFinite(longNotional) && Number.isFinite(shortNotional)) {
     const longStr  = "$" + formatNumber(longNotional, 0);
     const shortStr = "$" + formatNumber(shortNotional, 0);
-    metaEl.textContent =
-      `Closed long ~${longStr} · Closed short ~${shortStr}`;
+    metaEl.textContent = `Closed long ~${longStr} · Closed short ~${shortStr}`;
   } else {
+    // fallback text
     metaEl.textContent =
       "Based on realized volume from fully closed trades only.";
   }
