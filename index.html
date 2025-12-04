@@ -1911,6 +1911,125 @@ function updateDirectionalBias(data) {
   }
 }
 
+  function renderSummaryBadges(data) {
+  const summaryBadges = document.getElementById("summaryBadges");
+  const summaryMeta   = document.getElementById("summaryMeta");
+  if (!summaryBadges || !summaryMeta) return;
+
+  summaryBadges.innerHTML = "";
+  summaryMeta.innerHTML   = "";
+
+  // -------- PnL + ROI badges (left side) --------
+  const tradingPnl   = typeof data.perp_pnl === "number" ? data.perp_pnl : null;
+  const portfolioPnl = typeof data.balance_change === "number" ? data.balance_change : null;
+
+  const roiObj = data.roi || {};
+  const portfolioPct =
+    typeof roiObj.portfolio_pct === "number" ? roiObj.portfolio_pct : null;
+
+  const pnlBadges = [];
+
+  if (portfolioPnl !== null) {
+    const color = portfolioPnl >= 0 ? "green" : "red";
+    pnlBadges.push(
+      createBadge(
+        "Portfolio PnL",
+        "$" + formatNumber(portfolioPnl, 2),
+        { color }
+      )
+    );
+  }
+
+  if (tradingPnl !== null) {
+    const color = tradingPnl >= 0 ? "green" : "red";
+    pnlBadges.push(
+      createBadge(
+        "Perp PnL",
+        "$" + formatNumber(tradingPnl, 2),
+        { color }
+      )
+    );
+  }
+
+  if (portfolioPct !== null) {
+    const color = portfolioPct >= 0 ? "green" : "red";
+    pnlBadges.push(
+      createBadge(
+        "Portfolio ROI",
+        formatNumber(portfolioPct, 2) + "%",
+        { color }
+      )
+    );
+  }
+
+  if (!pnlBadges.length) {
+    summaryBadges.innerHTML =
+      '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
+  } else {
+    pnlBadges.forEach(b => summaryBadges.appendChild(b));
+  }
+
+  // -------- Meta badges (right side) --------
+  const metaBadges = [];
+
+  // Old-style summary fallback (if backend still sends it)
+  const anySummary =
+    data.summary ||
+    data.portfolioSummary ||
+    data.portfolio ||
+    data.meta ||
+    null;
+
+  const deposits =
+    anySummary?.deposits ??
+    anySummary?.deposited ??
+    data.adjustments?.deposits ??
+    null;
+
+  const withdrawals =
+    anySummary?.withdrawals ??
+    anySummary?.withdrawn ??
+    data.adjustments?.withdrawals ??
+    null;
+
+  const fees = anySummary?.fees ?? null;
+
+  if (deposits !== null) {
+    metaBadges.push(
+      createBadge("Deposits", "$" + formatNumber(deposits, 2))
+    );
+  }
+  if (withdrawals !== null) {
+    metaBadges.push(
+      createBadge("Withdrawals", "$" + formatNumber(withdrawals, 2))
+    );
+  }
+  if (fees !== null) {
+    metaBadges.push(
+      createBadge("Fees", "$" + formatNumber(fees, 2))
+    );
+  }
+
+  const balances = data.balances || {};
+  if (balances.perp_now != null) {
+    metaBadges.push(
+      createBadge("Perp balance now", "$" + formatNumber(balances.perp_now, 2))
+    );
+  }
+  if (balances.portfolio_now != null) {
+    metaBadges.push(
+      createBadge("Portfolio balance now", "$" + formatNumber(balances.portfolio_now, 2))
+    );
+  }
+
+  if (!metaBadges.length) {
+    summaryMeta.innerHTML =
+      '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
+  } else {
+    metaBadges.forEach(b => summaryMeta.appendChild(b));
+  }
+}
+
 
 async function runFetch(skipRedirect, rangeOverride, options = {}) {
   const updateTables = options.updateTables !== false; // default true
@@ -1999,94 +2118,13 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const accDisplay = (data.account || account || "").toString();
     accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
 
-    // summary badges
-    const summaryBadges = document.getElementById("summaryBadges");
-    const summaryMeta = document.getElementById("summaryMeta");
-    summaryBadges.innerHTML = "";
-    summaryMeta.innerHTML = "";
+        // account label top-right
+    const accountLabel = document.getElementById("accountLabel");
+    const accDisplay = (data.account || account || "").toString();
+    accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
 
-    const tradingPnl   = typeof data.perp_pnl === "number" ? data.perp_pnl : null;
-    const portfolioPnl = typeof data.balance_change === "number" ? data.balance_change : null;
-
-    const roiObj = data.roi || {};
-    const tradingPct   = typeof roiObj.trading_pct === "number" ? roiObj.trading_pct : null;
-    const portfolioPct = typeof roiObj.portfolio_pct === "number" ? roiObj.portfolio_pct : null;
-
-    const pnlBadges = [];
-
-    if (portfolioPnl !== null) {
-      const color = portfolioPnl >= 0 ? "green" : "red";
-      pnlBadges.push(
-        createBadge("Portfolio PnL", "$" + formatNumber(portfolioPnl, 2), { color })
-      );
-    }
-    if (tradingPnl !== null) {
-      const color = tradingPnl >= 0 ? "green" : "red";
-      pnlBadges.push(
-        createBadge("Perp PnL", "$" + formatNumber(tradingPnl, 2), { color })
-      );
-    }
-    if (portfolioPct !== null) {
-      const color = portfolioPct >= 0 ? "green" : "red";
-      pnlBadges.push(
-        createBadge("Portfolio ROI", formatNumber(portfolioPct, 2) + "%", { color })
-      );
-    }
-    // ⛔️ No Perp ROE badge anymore – handled in the left card
-
-    if (!pnlBadges.length) {
-      summaryBadges.innerHTML =
-        '<span style="font-size:0.78rem; color:var(--muted);">No PnL / ROI fields returned in response.</span>';
-    } else {
-      pnlBadges.forEach(b => summaryBadges.appendChild(b));
-    }
-
-    const anySummary =
-      data.summary || data.portfolioSummary || data.portfolio || data.meta || null;
-
-    const deposits =
-      anySummary?.deposits ??
-      anySummary?.deposited ??
-      data.adjustments?.deposits ??
-      null;
-
-    const withdrawals =
-      anySummary?.withdrawals ??
-      anySummary?.withdrawn ??
-      data.adjustments?.withdrawals ??
-      null;
-
-    const fees = anySummary?.fees ?? null;
-
-    const metaBadges = [];
-    if (deposits !== null) {
-      metaBadges.push(createBadge("Deposits", "$" + formatNumber(deposits, 2)));
-    }
-    if (withdrawals !== null) {
-      metaBadges.push(createBadge("Withdrawals", "$" + formatNumber(withdrawals, 2)));
-    }
-    if (fees !== null) {
-      metaBadges.push(createBadge("Fees", "$" + formatNumber(fees, 2)));
-    }
-
-    const balances = data.balances || {};
-    if (balances.perp_now != null) {
-      metaBadges.push(
-        createBadge("Perp balance now", "$" + formatNumber(balances.perp_now, 2))
-      );
-    }
-    if (balances.portfolio_now != null) {
-      metaBadges.push(
-        createBadge("Portfolio balance now", "$" + formatNumber(balances.portfolio_now, 2))
-      );
-    }
-
-    if (!metaBadges.length) {
-      summaryMeta.innerHTML =
-        '<span style="font-size:0.78rem; color:var(--muted);">No cashflow / balance meta returned.</span>';
-    } else {
-      metaBadges.forEach(b => summaryMeta.appendChild(b));
-    }
+    // summary badges + meta
+    renderSummaryBadges(data);
 
     // ----------------------------
     // Perp ROE card (left of chart)
