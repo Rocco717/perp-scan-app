@@ -2286,10 +2286,11 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     document.getElementById("positionsCount").textContent = `(${positions.length})`;
     document.getElementById("closedCount").textContent    = `(${closed.length})`;
     document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
+  }  
 
-    // ---------- CHART SERIES ----------
-    // Perp balance series
-    equitySeriesAll = Array.isArray(data.equitySeries)
+  // ---------- CHART SERIES ----------
+  // Perp balance series
+  equitySeriesAll = Array.isArray(data.equitySeries)
       ? data.equitySeries
       : [];
 
@@ -2332,12 +2333,13 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
   } finally {
     fetchBtn.disabled = false;
   }
+}  // 👈 CLOSES: async function runFetch(...)
 
-  function handleSubmit(event) {
-    if (event) event.preventDefault();
-    // First manual fetch: use whatever currentRange is (default = "all")
-    runFetch(false, currentRange, { updateTables: true });
-  }
+function handleSubmit(event) {
+  if (event) event.preventDefault();
+  // First manual fetch: use whatever currentRange is (default = "all")
+  runFetch(false, currentRange, { updateTables: true });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
