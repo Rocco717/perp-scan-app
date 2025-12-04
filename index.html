@@ -2137,16 +2137,27 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     // 🔹 Open orders tab
     renderOpenOrders(openOrders);
 
-// 🔹 Cashflows: let renderer handle direction / amount / filtering
-const cashflows = Array.isArray(data.cashflows) ? data.cashflows : [];
+    // 🔹 Funding events → use perp transfers as deposits/withdrawals for perp account
+    fundingEventsAll = Array.isArray(data.fundingEvents)
+      ? data.fundingEvents.filter(ev => ev && ev.kind === "perpTransfer")
+      : [];
 
-renderCashflowsTable(cashContainer, cashflows);
+    // Sort newest → oldest
+    fundingEventsAll.sort((a, b) => {
+      const ta = Number(a.time ?? a.ts ?? 0);
+      const tb = Number(b.time ?? b.ts ?? 0);
+      return tb - ta;
+    });
 
-// 🔹 Tab counts
-document.getElementById("positionsCount").textContent = `(${positions.length})`;
-document.getElementById("closedCount").textContent    = `(${closed.length})`;
-document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
-}
+    // Reset pagination and render into the cashflow block
+    fundingPage = 0;
+    renderFundingTable(cashContainer);
+
+    // 🔹 Tab counts
+    document.getElementById("positionsCount").textContent = `(${positions.length})`;
+    document.getElementById("closedCount").textContent    = `(${closed.length})`;
+    document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
+}   // 👈 this is the end of: if (updateTables) {
 
   // ---------- CHART SERIES ----------
   // Perp balance series
