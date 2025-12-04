@@ -1198,6 +1198,67 @@ function buildTable(container, rows, opts = {}) {
     container.appendChild(nav);
   }
 
+    function renderCashflowsTable(container, cashflows) {
+    container.innerHTML = "";
+  
+    if (!Array.isArray(cashflows) || cashflows.length === 0) {
+      container.innerHTML = `
+        <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
+          No deposits or withdrawals.
+        </div>
+      `;
+      return;
+    }
+  
+    // Sort newest → oldest
+    const list = [...cashflows].sort((a, b) => b.ts - a.ts);
+  
+    let html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Date / Time</th>
+            <th>Direction</th>
+            <th>Amount (USDC)</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+  
+    for (const ev of list) {
+      const ts = formatDateTime(ev.ts);
+  
+      const dir =
+        ev.kind === "deposit"  ? "Deposit" :
+        ev.kind === "withdraw" ? "Withdrawal" :
+        "Transfer";
+  
+      const color =
+        ev.kind === "deposit"  ? "var(--success)" :
+        ev.kind === "withdraw" ? "var(--danger)" :
+        "var(--muted)";
+  
+      const usd = Number(ev.usd ?? ev.amount ?? 0);
+  
+      html += `
+        <tr>
+          <td>${ts}</td>
+          <td style="color:${color};">${dir}</td>
+          <td style="color:${color};">
+            ${ev.kind === "deposit" ? "+$" : ev.kind === "withdraw" ? "-$" : ""}
+            ${formatNumber(Math.abs(usd), 2)}
+          </td>
+          <td>${ev.note || ""}</td>
+        </tr>
+      `;
+    }
+  
+    html += "</tbody></table>";
+  
+    container.innerHTML = html;
+  }
+
     function renderOpenOrders(openOrders) {
       const container = document.getElementById("ordersTableContainer");
       const countSpan = document.getElementById("ordersCount");
@@ -2020,19 +2081,15 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       // 🔹 Open orders tab
       renderOpenOrders(openOrders);
     
-      // 🔹 Funding events
-      fundingEventsAll = (data.fundingEvents || [])
-        .filter(ev => ev.kind === "perpTransfer")
-        .sort((a, b) => b.time - a.time); // newest first
+    // 🔹 Cashflows (correct source for deposits & withdrawals)
+    const cashflows = Array.isArray(data.cashflows) ? data.cashflows : [];
     
-      fundingPage = 0;
-      renderFundingTable(cashContainer);
+    renderCashflowsTable(cashContainer, cashflows);
     
-      // 🔹 Tab counts
-      document.getElementById("positionsCount").textContent = `(${positions.length})`;
-      document.getElementById("closedCount").textContent    = `(${closed.length})`;
-      document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
-    }
+    // 🔹 Tab count
+    document.getElementById("positionsCount").textContent = `(${positions.length})`;
+    document.getElementById("closedCount").textContent    = `(${closed.length})`;
+    document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
 
     // --- Perp balance series ---
     equitySeriesAll = Array.isArray(data.equitySeries)
