@@ -1132,21 +1132,42 @@ function renderCashflowsTable(container, cashflows) {
   const tbody = document.createElement("tbody");
 
   list.forEach((cf) => {
-    const kind = (cf.kind || "").toLowerCase(); // deposit / withdraw
-    const isIn = kind === "deposit";
+    const kindRaw = (cf.kind || "").toLowerCase(); // e.g. "deposit", "depositPerp", "withdraw", "withdrawal", "transfer"
+    const amtRaw  = Number(cf.usd ?? cf.amount ?? 0);
+    if (!Number.isFinite(amtRaw) || amtRaw === 0) return; // defensive; filter already did this
 
-    const amt = Number(cf.usd ?? cf.amount ?? 0);
-    const signed = isIn ? amt : -amt;
+    let direction = "Transfer";
+    let dirColor  = "var(--muted)";
+    let signed    = amtRaw;
 
-    const dirLabel = isIn ? "Deposit" : "Withdrawal";
-    const dirColor = isIn ? "var(--success)" : "var(--danger)";
+    // 1) Text overrides
+    if (kindRaw.includes("deposit")) {
+      direction = "Deposit";
+      dirColor  = "var(--success)";
+      signed    = Math.abs(amtRaw);
+    } else if (kindRaw.includes("withdraw")) {
+      direction = "Withdrawal";
+      dirColor  = "var(--danger)";
+      signed    = -Math.abs(amtRaw);
+    } else {
+      // 2) Fallback to numeric sign if kind is ambiguous (e.g. "transfer")
+      if (amtRaw > 0) {
+        direction = "Deposit";
+        dirColor  = "var(--success)";
+        signed    = amtRaw;
+      } else if (amtRaw < 0) {
+        direction = "Withdrawal";
+        dirColor  = "var(--danger)";
+        signed    = amtRaw;
+      }
+    }
 
     const ts = cf.ts || cf.time || null;
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${ts ? formatDateTime(ts) : ""}</td>
-      <td style="color:${dirColor};">${dirLabel}</td>
+      <td style="color:${dirColor};">${direction}</td>
       <td style="color:${dirColor};">
         ${signed >= 0 ? "+" : "-"}$${formatNumber(Math.abs(signed), 2)}
       </td>
@@ -1159,82 +1180,6 @@ function renderCashflowsTable(container, cashflows) {
   table.appendChild(tbody);
   container.appendChild(table);
 }
-
-  function renderFundingTable(container) {
-    container.innerHTML = "";
-
-    const start = fundingPage * FUNDING_PAGE_SIZE;
-    const end = start + FUNDING_PAGE_SIZE;
-    const pageItems = fundingEventsAll.slice(start, end);
-
-    // Header
-    const header = document.createElement("div");
-    header.style.padding = "8px 10px";
-    header.style.fontSize = "0.78rem";
-    header.style.color = "var(--muted)";
-    header.textContent =
-      `Showing ${start + 1}–${Math.min(end, fundingEventsAll.length)} of ${fundingEventsAll.length} transfers`;
-    container.appendChild(header);
-
-    if (pageItems.length === 0) {
-      const empty = document.createElement("div");
-      empty.style.padding = "10px";
-      empty.style.color = "var(--muted)";
-      empty.textContent = "No transfers.";
-      container.appendChild(empty);
-      return;
-    }
-
-    // Table
-    const table = document.createElement("table");
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th>Date / Time</th>
-          <th>Direction</th>
-          <th>Amount (USDC)</th>
-          <th>Note</th>
-          <th>Tx Hash</th>
-        </tr>
-      </thead>
-    `;
-    const tbody = document.createElement("tbody");
-
-    pageItems.forEach(ev => {
-      const shortHash =
-        ev.hash && ev.hash.length > 14
-          ? `${ev.hash.slice(0, 10)}…${ev.hash.slice(-6)}`
-          : (ev.hash || "");
-
-      const tr = document.createElement("tr");
-      
-      tr.innerHTML = `
-        <td>${formatDateTime(ev.time)}</td>
-      
-        <td style="color:${
-          ev.direction === "IN" ? "var(--success)" : "var(--danger)"
-        }">
-          ${ev.direction === "IN" ? "Deposit" : "Withdrawal"}
-        </td>
-      
-        <td style="color:${
-          ev.direction === "IN" ? "var(--success)" : "var(--danger)"
-        }">
-          ${
-            ev.direction === "IN"
-              ? "+$" + formatNumber(ev.usdcValue ?? ev.amount ?? 0, 2)
-              : "-$" + formatNumber(ev.usdcValue ?? ev.amount ?? 0, 2)
-          }
-        </td>
-      
-        <td>${ev.note || ""}</td>
-        <td>${shortHash}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    table.appendChild(tbody);
-    container.appendChild(table);
 
     // Pagination buttons
     const nav = document.createElement("div");
@@ -2265,28 +2210,21 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     // 🔹 Open orders tab
     renderOpenOrders(openOrders);
 
-    // 🔹 Cashflows (real deposits / withdrawals only)
-    const cashflowsRaw = Array.isArray(data.cashflows) ? data.cashflows : [];
+// 🔹 Cashflows: keep all real non-zero flows, let renderer decide direction
+const cashflowsRaw = Array.isArray(data.cashflows) ? data.cashflows : [];
 
-    // Keep only real non-zero deposits / withdrawals
-    const cashflows = cashflowsRaw.filter((cf) => {
-      if (!cf) return false;
+const cashflows = cashflowsRaw.filter((cf) => {
+  if (!cf) return false;
+  const amt = Number(cf.usd ?? cf.amount ?? 0);
+  return Number.isFinite(amt) && amt !== 0;
+});
 
-      const kind = (cf.kind || "").toLowerCase();   // "deposit" | "withdraw" | "transfer" | ...
-      const amt  = Number(cf.usd ?? cf.amount ?? 0);
-
-      if (!Number.isFinite(amt) || amt === 0) return false;
-
-      return kind === "deposit" || kind === "withdraw";
-    });
-
-    renderCashflowsTable(cashContainer, cashflows);
+renderCashflowsTable(cashContainer, cashflows);
 
     // 🔹 Tab counts
     document.getElementById("positionsCount").textContent = `(${positions.length})`;
     document.getElementById("closedCount").textContent    = `(${closed.length})`;
     document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
-  }  
 
   // ---------- CHART SERIES ----------
   // Perp balance series
