@@ -2136,7 +2136,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     return;
   }
 
-  // URL param handling (account + period) — we no longer store base URL
+  // URL param handling (account + period)
   const currentUrl = new URL(window.location.href);
   const hasAccountInUrl = !!currentUrl.searchParams.get("account");
 
@@ -2150,7 +2150,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
   setDetailMode(true);
   setActiveTable("positions");
 
-  // 🔹 Use hardcoded Worker URL instead of DOM input
+  // Hardcoded Worker URL
   let baseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "");
   const url =
     baseUrl +
@@ -2201,68 +2201,64 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const accDisplay = (data.account || account || "").toString();
     accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
 
-    // summary badges + meta
+    // 🔹 Summary badges + meta (PnL / ROI / balances)
     renderSummaryBadges(data);
 
-    // ----------------------------
-    // Perp ROE card (left of chart)
-    // ----------------------------
-    renderRoeCard(roiObj, balances, tradingPnl, period);
+    // 🔹 Perp ROE card (left of chart)
+    updateRoeCard(data, period);
 
-    // Directional bias (closed) panel
+    // 🔹 Directional bias (closed trades)
     updateDirectionalBias(data);
 
+    // ---------- TABLES ----------
     if (updateTables) {
       const positions = data.positions || data.openPositions || data.open || [];
       const closed    = data.closed    || data.closedTrades || data.trades || [];
-    
+
       const positionsContainer = document.getElementById("positionsTableContainer");
       const closedContainer    = document.getElementById("closedTableContainer");
       const cashContainer      = document.getElementById("cashTableContainer");
-    
+
       // Prefer frontendOpenOrders if you add that later, for now:
       const openOrders = data.openOrders || data.orders || [];
-    
+
       // Use backend "now" if available, else browser clock
       const nowMs =
         typeof data.debugWindow?.endMs === "number"
           ? data.debugWindow.endMs
           : Date.now();
-    
+
       // 🔹 Build TP/SL coverage map per coin
       const slTpByCoin = buildSlTpByCoin(positions, openOrders);
-    
-      // 🔹 Build tables (positions gets slTpByCoin)
+
+      // 🔹 Positions table
       buildTable(positionsContainer, positions, {
         type: "positions",
         nowMs,
         slTpByCoin,
       });
-    
+
+      // 🔹 Closed trades table
       buildTable(closedContainer, closed, {
         type: "closed",
         nowMs,
       });
-    
-    // 🔹 Open orders tab
-    renderOpenOrders(openOrders);
 
-    // 🔹 Funding events → use perp transfers as deposits/withdrawals for perp account
-    fundingEventsAll = (data.fundingEvents || [])
-      .filter(ev => ev.kind === "perpTransfer")
-      .sort((a, b) => b.time - a.time); // newest first
+      // 🔹 Open orders tab
+      renderOpenOrders(openOrders);
 
-    fundingPage = 0;
-    renderFundingTable(cashContainer);
+      // 🔹 Cashflows table (deposits / withdrawals)
+      const cashflows = Array.isArray(data.cashflows) ? data.cashflows : [];
+      renderCashflowsTable(cashContainer, cashflows);
 
-    // 🔹 Tab counts
-    document.getElementById("positionsCount").textContent = `(${positions.length})`;
-    document.getElementById("closedCount").textContent    = `(${closed.length})`;
-    document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
+      // 🔹 Tab counts
+      document.getElementById("positionsCount").textContent = `(${positions.length})`;
+      document.getElementById("closedCount").textContent    = `(${closed.length})`;
+      document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
+    }
 
-    } // ✅ CLOSES if (updateTables)
-
-    // --- Perp balance series ---
+    // ---------- CHART SERIES ----------
+    // Perp balance series
     equitySeriesAll = Array.isArray(data.equitySeries)
       ? data.equitySeries
       : [];
@@ -2279,7 +2275,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         .sort((a, b) => a.ts - b.ts);
     }
 
-    // --- Perp PnL series ---
+    // Perp PnL series
     pnlSeriesAll = Array.isArray(data.pnlSeries)
       ? data.pnlSeries
       : [];
@@ -2296,7 +2292,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         .sort((a, b) => a.ts - b.ts);
     }
 
-    // 🔹 Finally render the unified chart (Perp PnL or Perp balance depending on activeChartMode)
+    // 🔹 Finally render the unified chart (PnL or balance)
     renderEquityChart(currentRange);
 
   } catch (err) {
