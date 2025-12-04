@@ -2130,17 +2130,22 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         nowMs,
       });
     
-      // 🔹 Open orders tab
-      renderOpenOrders(openOrders);
-    
-      // 🔹 Cashflows (correct source for deposits & withdrawals)
-      const cashflows = Array.isArray(data.cashflows) ? data.cashflows : [];
-      renderCashflowsTable(cashContainer, cashflows);
-    
-      // 🔹 Tab counts
-      document.getElementById("positionsCount").textContent = `(${positions.length})`;
-      document.getElementById("closedCount").textContent    = `(${closed.length})`;
-      document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
+    // 🔹 Open orders tab
+    renderOpenOrders(openOrders);
+
+    // 🔹 Funding events → use perp transfers as deposits/withdrawals for perp account
+    fundingEventsAll = (data.fundingEvents || [])
+      .filter(ev => ev.kind === "perpTransfer")
+      .sort((a, b) => b.time - a.time); // newest first
+
+    fundingPage = 0;
+    renderFundingTable(cashContainer);
+
+    // 🔹 Tab counts
+    document.getElementById("positionsCount").textContent = `(${positions.length})`;
+    document.getElementById("closedCount").textContent    = `(${closed.length})`;
+    document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
+
     } // ✅ CLOSES if (updateTables)
 
     // --- Perp balance series ---
