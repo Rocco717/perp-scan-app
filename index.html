@@ -2256,18 +2256,30 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         nowMs,
       });
 
-      // 🔹 Open orders tab
-      renderOpenOrders(openOrders);
+    // 🔹 Open orders tab
+    renderOpenOrders(openOrders);
 
-      // 🔹 Cashflows table (deposits / withdrawals)
-      const cashflows = Array.isArray(data.cashflows) ? data.cashflows : [];
-      renderCashflowsTable(cashContainer, cashflows);
+    // 🔹 Cashflows (real deposits / withdrawals only)
+    const cashflowsRaw = Array.isArray(data.cashflows) ? data.cashflows : [];
 
-      // 🔹 Tab counts
-      document.getElementById("positionsCount").textContent = `(${positions.length})`;
-      document.getElementById("closedCount").textContent    = `(${closed.length})`;
-      document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
-    }
+    // Keep only real non-zero deposits / withdrawals
+    const cashflows = cashflowsRaw.filter((cf) => {
+      if (!cf) return false;
+
+      const kind = (cf.kind || "").toLowerCase();   // "deposit" | "withdraw" | "transfer" | ...
+      const amt  = Number(cf.usd ?? cf.amount ?? 0);
+
+      if (!Number.isFinite(amt) || amt === 0) return false;
+
+      return kind === "deposit" || kind === "withdraw";
+    });
+
+    renderCashflowsTable(cashContainer, cashflows);
+
+    // 🔹 Tab counts
+    document.getElementById("positionsCount").textContent = `(${positions.length})`;
+    document.getElementById("closedCount").textContent    = `(${closed.length})`;
+    document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
 
     // ---------- CHART SERIES ----------
     // Perp balance series
