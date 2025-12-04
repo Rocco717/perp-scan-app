@@ -1108,14 +1108,20 @@ function renderCashflowsTable(container, cashflows) {
   const list = Array.isArray(cashflows) ? cashflows : [];
 
   if (!list.length) {
-    const empty = document.createElement("div");
-    empty.style.padding = "10px";
-    empty.style.fontSize = "0.78rem";
-    empty.style.color = "var(--muted)";
-    empty.textContent = "No deposits or withdrawals in this period.";
-    container.appendChild(empty);
+    container.innerHTML = `
+      <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
+        No deposits or withdrawals in this period.
+      </div>
+    `;
     return;
   }
+
+  // Sort newest → oldest if possible
+  const sorted = [...list].sort((a, b) => {
+    const ta = Number(a.ts ?? a.time ?? 0);
+    const tb = Number(b.ts ?? b.time ?? 0);
+    return tb - ta;
+  });
 
   const table = document.createElement("table");
   table.innerHTML = `
@@ -1131,16 +1137,24 @@ function renderCashflowsTable(container, cashflows) {
   `;
   const tbody = document.createElement("tbody");
 
-  list.forEach((cf) => {
-    const kindRaw = (cf.kind || "").toLowerCase(); // e.g. "deposit", "depositPerp", "withdraw", "withdrawal", "transfer"
-    const amtRaw  = Number(cf.usd ?? cf.amount ?? 0);
-    if (!Number.isFinite(amtRaw) || amtRaw === 0) return; // defensive; filter already did this
+  sorted.forEach((cf) => {
+    if (!cf) return;
+
+    const kindRaw = (cf.kind || "").toLowerCase();
+
+    const amtRaw = Number(
+      cf.usd ??
+      cf.usdc ??
+      cf.amountUsd ??
+      cf.amount_usd ??
+      cf.amount ??
+      0
+    );
 
     let direction = "Transfer";
     let dirColor  = "var(--muted)";
     let signed    = amtRaw;
 
-    // 1) Text overrides
     if (kindRaw.includes("deposit")) {
       direction = "Deposit";
       dirColor  = "var(--success)";
@@ -1150,7 +1164,6 @@ function renderCashflowsTable(container, cashflows) {
       dirColor  = "var(--danger)";
       signed    = -Math.abs(amtRaw);
     } else {
-      // 2) Fallback to numeric sign if kind is ambiguous (e.g. "transfer")
       if (amtRaw > 0) {
         direction = "Deposit";
         dirColor  = "var(--success)";
@@ -1162,7 +1175,9 @@ function renderCashflowsTable(container, cashflows) {
       }
     }
 
-    const ts = cf.ts || cf.time || null;
+    const ts    = cf.ts ?? cf.time ?? null;
+    const asset = cf.asset || cf.coin || "USDC";
+    const note  = cf.note || cf.memo || "";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -1171,8 +1186,8 @@ function renderCashflowsTable(container, cashflows) {
       <td style="color:${dirColor};">
         ${signed >= 0 ? "+" : "-"}$${formatNumber(Math.abs(signed), 2)}
       </td>
-      <td>${cf.asset || "USDC"}</td>
-      <td>${cf.note || ""}</td>
+      <td>${asset}</td>
+      <td>${note}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1180,95 +1195,7 @@ function renderCashflowsTable(container, cashflows) {
   table.appendChild(tbody);
   container.appendChild(table);
 }
-
-    // Pagination buttons
-    const nav = document.createElement("div");
-    nav.style.marginTop = "10px";
-    nav.style.display = "flex";
-    nav.style.justifyContent = "space-between";
-
-    const prevBtn = document.createElement("button");
-    prevBtn.textContent = "← Prev";
-    prevBtn.disabled = fundingPage === 0;
-    prevBtn.onclick = () => {
-      fundingPage -= 1;
-      renderFundingTable(container);
-    };
-
-    const nextBtn = document.createElement("button");
-    nextBtn.textContent = "Next →";
-    nextBtn.disabled = end >= fundingEventsAll.length;
-    nextBtn.onclick = () => {
-      fundingPage += 1;
-      renderFundingTable(container);
-    };
-
-    nav.appendChild(prevBtn);
-    nav.appendChild(nextBtn);
-    container.appendChild(nav);
-  }
-
-    function renderCashflowsTable(container, cashflows) {
-    container.innerHTML = "";
   
-    if (!Array.isArray(cashflows) || cashflows.length === 0) {
-      container.innerHTML = `
-        <div style="padding:10px; font-size:0.78rem; color:var(--muted);">
-          No deposits or withdrawals.
-        </div>
-      `;
-      return;
-    }
-  
-    // Sort newest → oldest
-    const list = [...cashflows].sort((a, b) => b.ts - a.ts);
-  
-    let html = `
-      <table>
-        <thead>
-          <tr>
-            <th>Date / Time</th>
-            <th>Direction</th>
-            <th>Amount (USDC)</th>
-            <th>Note</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-  
-    for (const ev of list) {
-      const ts = formatDateTime(ev.ts);
-  
-      const dir =
-        ev.kind === "deposit"  ? "Deposit" :
-        ev.kind === "withdraw" ? "Withdrawal" :
-        "Transfer";
-  
-      const color =
-        ev.kind === "deposit"  ? "var(--success)" :
-        ev.kind === "withdraw" ? "var(--danger)" :
-        "var(--muted)";
-  
-      const usd = Number(ev.usd ?? ev.amount ?? 0);
-  
-      html += `
-        <tr>
-          <td>${ts}</td>
-          <td style="color:${color};">${dir}</td>
-          <td style="color:${color};">
-            ${ev.kind === "deposit" ? "+$" : ev.kind === "withdraw" ? "-$" : ""}
-            ${formatNumber(Math.abs(usd), 2)}
-          </td>
-          <td>${ev.note || ""}</td>
-        </tr>
-      `;
-    }
-  
-    html += "</tbody></table>";
-  
-    container.innerHTML = html;
-  }
-
     function renderOpenOrders(openOrders) {
       const container = document.getElementById("ordersTableContainer");
       const countSpan = document.getElementById("ordersCount");
@@ -2210,21 +2137,16 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     // 🔹 Open orders tab
     renderOpenOrders(openOrders);
 
-// 🔹 Cashflows: keep all real non-zero flows, let renderer decide direction
-const cashflowsRaw = Array.isArray(data.cashflows) ? data.cashflows : [];
-
-const cashflows = cashflowsRaw.filter((cf) => {
-  if (!cf) return false;
-  const amt = Number(cf.usd ?? cf.amount ?? 0);
-  return Number.isFinite(amt) && amt !== 0;
-});
+// 🔹 Cashflows: let renderer handle direction / amount / filtering
+const cashflows = Array.isArray(data.cashflows) ? data.cashflows : [];
 
 renderCashflowsTable(cashContainer, cashflows);
 
-    // 🔹 Tab counts
-    document.getElementById("positionsCount").textContent = `(${positions.length})`;
-    document.getElementById("closedCount").textContent    = `(${closed.length})`;
-    document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
+// 🔹 Tab counts
+document.getElementById("positionsCount").textContent = `(${positions.length})`;
+document.getElementById("closedCount").textContent    = `(${closed.length})`;
+document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
+
 
   // ---------- CHART SERIES ----------
   // Perp balance series
