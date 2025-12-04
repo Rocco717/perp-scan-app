@@ -1102,7 +1102,7 @@ function buildTable(container, rows, opts = {}) {
   container.appendChild(table);
 }
 
-  function renderCashflowsTable(container, cashflows) {
+function renderCashflowsTable(container, cashflows) {
   container.innerHTML = "";
 
   const list = Array.isArray(cashflows) ? cashflows : [];
@@ -1110,8 +1110,9 @@ function buildTable(container, rows, opts = {}) {
   if (!list.length) {
     const empty = document.createElement("div");
     empty.style.padding = "10px";
+    empty.style.fontSize = "0.78rem";
     empty.style.color = "var(--muted)";
-    empty.textContent = "No deposits or withdrawals in this window.";
+    empty.textContent = "No deposits or withdrawals in this period.";
     container.appendChild(empty);
     return;
   }
@@ -1121,34 +1122,39 @@ function buildTable(container, rows, opts = {}) {
     <thead>
       <tr>
         <th>Date / Time</th>
-        <th>Kind</th>
+        <th>Direction</th>
+        <th>Amount (USDC)</th>
         <th>Asset</th>
-        <th>Amount</th>
-        <th>USD value</th>
         <th>Note</th>
       </tr>
     </thead>
   `;
   const tbody = document.createElement("tbody");
 
-  for (const cf of list) {
-    const ts   = cf.ts ? formatDateTime(cf.ts) : (cf.iso || "-");
-    const kind = cf.kind || "-";
-    const asset = cf.asset || "-";
-    const amount = Number(cf.amount ?? 0);
-    const usd    = Number(cf.usd ?? cf.amount ?? 0);
+  list.forEach((cf) => {
+    const kind = (cf.kind || "").toLowerCase(); // deposit / withdraw
+    const isIn = kind === "deposit";
+
+    const amt = Number(cf.usd ?? cf.amount ?? 0);
+    const signed = isIn ? amt : -amt;
+
+    const dirLabel = isIn ? "Deposit" : "Withdrawal";
+    const dirColor = isIn ? "var(--success)" : "var(--danger)";
+
+    const ts = cf.ts || cf.time || null;
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${ts}</td>
-      <td>${kind}</td>
-      <td>${asset}</td>
-      <td>${formatNumber(amount, 4)}</td>
-      <td>$${formatNumber(usd, 2)}</td>
+      <td>${ts ? formatDateTime(ts) : ""}</td>
+      <td style="color:${dirColor};">${dirLabel}</td>
+      <td style="color:${dirColor};">
+        ${signed >= 0 ? "+" : "-"}$${formatNumber(Math.abs(signed), 2)}
+      </td>
+      <td>${cf.asset || "USDC"}</td>
       <td>${cf.note || ""}</td>
     `;
     tbody.appendChild(tr);
-  }
+  });
 
   table.appendChild(tbody);
   container.appendChild(table);
