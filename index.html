@@ -2118,11 +2118,6 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const accDisplay = (data.account || account || "").toString();
     accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
 
-        // account label top-right
-    const accountLabel = document.getElementById("accountLabel");
-    const accDisplay = (data.account || account || "").toString();
-    accountLabel.textContent = accDisplay ? accDisplay.slice(0, 8) + "…" : "";
-
     // summary badges + meta
     renderSummaryBadges(data);
 
