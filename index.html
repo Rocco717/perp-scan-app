@@ -1095,6 +1095,58 @@ function buildTable(container, rows, opts = {}) {
   container.appendChild(table);
 }
 
+  function renderCashflowsTable(container, cashflows) {
+  container.innerHTML = "";
+
+  const list = Array.isArray(cashflows) ? cashflows : [];
+
+  if (!list.length) {
+    const empty = document.createElement("div");
+    empty.style.padding = "10px";
+    empty.style.color = "var(--muted)";
+    empty.textContent = "No deposits or withdrawals in this window.";
+    container.appendChild(empty);
+    return;
+  }
+
+  const table = document.createElement("table");
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Date / Time</th>
+        <th>Kind</th>
+        <th>Asset</th>
+        <th>Amount</th>
+        <th>USD value</th>
+        <th>Note</th>
+      </tr>
+    </thead>
+  `;
+  const tbody = document.createElement("tbody");
+
+  for (const cf of list) {
+    const ts   = cf.ts ? formatDateTime(cf.ts) : (cf.iso || "-");
+    const kind = cf.kind || "-";
+    const asset = cf.asset || "-";
+    const amount = Number(cf.amount ?? 0);
+    const usd    = Number(cf.usd ?? cf.amount ?? 0);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${ts}</td>
+      <td>${kind}</td>
+      <td>${asset}</td>
+      <td>${formatNumber(amount, 4)}</td>
+      <td>$${formatNumber(usd, 2)}</td>
+      <td>${cf.note || ""}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
   function renderFundingTable(container) {
     container.innerHTML = "";
 
@@ -2081,15 +2133,15 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       // 🔹 Open orders tab
       renderOpenOrders(openOrders);
     
-    // 🔹 Cashflows (correct source for deposits & withdrawals)
-    const cashflows = Array.isArray(data.cashflows) ? data.cashflows : [];
+      // 🔹 Cashflows (correct source for deposits & withdrawals)
+      const cashflows = Array.isArray(data.cashflows) ? data.cashflows : [];
+      renderCashflowsTable(cashContainer, cashflows);
     
-    renderCashflowsTable(cashContainer, cashflows);
-    
-    // 🔹 Tab count
-    document.getElementById("positionsCount").textContent = `(${positions.length})`;
-    document.getElementById("closedCount").textContent    = `(${closed.length})`;
-    document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
+      // 🔹 Tab counts
+      document.getElementById("positionsCount").textContent = `(${positions.length})`;
+      document.getElementById("closedCount").textContent    = `(${closed.length})`;
+      document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
+    } // ✅ CLOSES if (updateTables)
 
     // --- Perp balance series ---
     equitySeriesAll = Array.isArray(data.equitySeries)
