@@ -685,6 +685,13 @@
   const FUNDING_PAGE_SIZE = 10;  // 10 per page
   const DEFAULT_BASE_URL = "https://perp-scan-live.liam-alerts.workers.dev";
 
+  // Lightweight app state (Plan A step)
+  const appState = {
+    account: null,
+    period: "all",   // UI range: all / 90d / 30d / 7d / 1d
+    data: null,      // last /pnlClean response
+  };
+
   function formatNumber(x, decimals = 2) {
     if (x === null || x === undefined || isNaN(Number(x))) return "";
     const n = Number(x);
@@ -2135,6 +2142,11 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     statusEl.className = "status status-error";
     return;
   }
+
+  // 🔹 Keep latest state available for future refactors
+  appState.account = account;
+  appState.period  = uiRange;   // UI range, e.g. "90d"
+  appState.data    = data;
 
   // URL param handling (account + period)
   const currentUrl = new URL(window.location.href);
