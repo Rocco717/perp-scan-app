@@ -1135,7 +1135,6 @@ function buildTable(container, rows, opts = {}) {
         // 🔹 Entry date formatting (positions + closed trades)
         if ((isPositions || isClosed) && k === "entryTs") {
           td.textContent = formatDateTime(v);
-        }
 
         // 🔹 Duration (both open + closed)
         } else if (k === "durationMs") {
