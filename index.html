@@ -2229,12 +2229,13 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     document.getElementById("positionsCount").textContent = `(${positions.length})`;
     document.getElementById("closedCount").textContent    = `(${closed.length})`;
     document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
+  } // 👈 CLOSES: if (updateTables)
 
   // ---------- CHART SERIES ----------
   // Perp balance series
   equitySeriesAll = Array.isArray(data.equitySeries)
-      ? data.equitySeries
-      : [];
+    ? data.equitySeries
+    : [];
 
     if (equitySeriesAll.length) {
       equitySeriesAll = equitySeriesAll
