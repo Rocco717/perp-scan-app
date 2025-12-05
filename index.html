@@ -834,13 +834,13 @@
     if (!ts && ts !== 0) return "";
     const d = new Date(ts);
     return d.toLocaleString("en-GB", {
-      day: "numeric",      // no leading zero → "2" not "02"
-      month: "short",      // "Nov"
+      day: "numeric",      // 👈 no leading zero
+      month: "short",
       hour: "2-digit",
       minute: "2-digit",
       hourCycle: "h23",
     }).replace(",", "");
-
+  }
 
   function buildSlTpByCoin(positions, openOrders) {
   const posMap = {};
