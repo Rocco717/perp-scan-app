@@ -685,6 +685,65 @@
   const FUNDING_PAGE_SIZE = 10;  // 10 per page
   const DEFAULT_BASE_URL = "https://perp-scan-live.liam-alerts.workers.dev";
 
+    function renderFundingTable(container) {
+    if (!container) return;
+
+    const start = fundingPage * FUNDING_PAGE_SIZE;
+    const end   = start + FUNDING_PAGE_SIZE;
+    const page  = Array.isArray(fundingEventsAll)
+      ? fundingEventsAll.slice(start, end)
+      : [];
+
+    const table = document.createElement("table");
+    table.className = "data-table";
+
+    const thead = document.createElement("thead");
+    thead.innerHTML = `
+      <tr>
+        <th>Date / Time</th>
+        <th>Type</th>
+        <th>Amount (USDC)</th>
+        <th>Note</th>
+      </tr>
+    `;
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    if (!page.length) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td colspan="4" class="muted">
+          No deposits or withdrawals found.
+        </td>`;
+      tbody.appendChild(tr);
+    } else {
+      for (const ev of page) {
+        if (!ev) continue;
+        const ts   = Number(ev.time || ev.ts || 0);
+        const amt  = Number(ev.usdcValue || ev.amount || 0);
+        const note = ev.note || "";
+
+        const type = amt >= 0 ? "Deposit" : "Withdrawal";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${ts ? formatDateTime(ts) : ""}</td>
+          <td>${type}</td>
+          <td class="${amt >= 0 ? "pill-green" : "pill-red"}">
+            ${amt >= 0 ? "+" : "-"}$${formatNumber(Math.abs(amt), 2)}
+          </td>
+          <td>${note}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    table.appendChild(tbody);
+    container.innerHTML = "";
+    container.appendChild(table);
+  }
+
   // Lightweight app state (Plan A step)
   const appState = {
     account: null,
@@ -1857,26 +1916,24 @@ function updateDirectionalBias(data) {
   // -------- Meta badges (right side) --------
   const metaBadges = [];
 
-  // Old-style summary fallback (if backend still sends it)
   const anySummary =
     data.summary ||
     data.portfolioSummary ||
     data.portfolio ||
     data.meta ||
     null;
-
+  
+  // v2.8: adjustments is gone → no fallback to data.adjustments
   const deposits =
     anySummary?.deposits ??
     anySummary?.deposited ??
-    data.adjustments?.deposits ??
     null;
-
+  
   const withdrawals =
     anySummary?.withdrawals ??
     anySummary?.withdrawn ??
-    data.adjustments?.withdrawals ??
     null;
-
+  
   const fees = anySummary?.fees ?? null;
 
   if (deposits !== null) {
@@ -1904,6 +1961,20 @@ function updateDirectionalBias(data) {
   if (balances.portfolio_now != null) {
     metaBadges.push(
       createBadge("Portfolio balance now", "$" + formatNumber(balances.portfolio_now, 2))
+    );
+  }
+
+  // 🔹 v2.8: optional fundingSummary → "Net funding" badge
+  const fundingSummary = data.fundingSummary || null;
+  if (fundingSummary && typeof fundingSummary.netFunding === "number") {
+    const nf = fundingSummary.netFunding;
+    const color = nf >= 0 ? "green" : "red";
+    metaBadges.push(
+      createBadge(
+        "Net funding",
+        "$" + formatNumber(nf, 2),
+        { color }
+      )
     );
   }
 
@@ -2137,15 +2208,27 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
   
     // 🔹 Open orders tab
     renderOpenOrders(openOrders);
-  
-    // 🔹 Funding events already handled elsewhere
+
+    // 🔹 Funding events (perp transfers) → cash tab
+    const rawFunding = Array.isArray(data.fundingEvents)
+      ? data.fundingEvents
+      : [];
+
+    fundingEventsAll = rawFunding
+      .filter(ev => ev && ev.kind === "perpTransfer")
+      .sort((a, b) => {
+        const ta = Number(a.time || a.ts || 0);
+        const tb = Number(b.time || b.ts || 0);
+        return tb - ta; // newest first
+      });
+
+    fundingPage = 0;
     renderFundingTable(cashContainer);
-  
+
     // 🔹 Tab counts
     document.getElementById("positionsCount").textContent = `(${positions.length})`;
     document.getElementById("closedCount").textContent    = `(${closed.length})`;
     document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
-  }
 
   // ---------- CHART SERIES ----------
   // Perp balance series
