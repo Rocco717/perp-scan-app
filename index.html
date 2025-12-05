@@ -953,7 +953,11 @@ function buildTable(container, rows, opts = {}) {
         "size",     // inline under Position Value
       ])
     : isClosed
-    ? new Set(["endTs"])
+    ? new Set([
+        "endTs",
+        "pnl",     // 🔹 hide raw pnl column
+        "pnlUsd",  // 🔹 (optional) hide usd variant if present
+      ])
     : new Set([]);
 
   let keys = Object.keys(rows[0] || {}).filter((k) => {
