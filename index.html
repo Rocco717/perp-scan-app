@@ -834,13 +834,13 @@
     if (!ts && ts !== 0) return "";
     const d = new Date(ts);
     return d.toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "short",   // "Nov"
+      day: "numeric",      // no leading zero → "2" not "02"
+      month: "short",      // "Nov"
       hour: "2-digit",
       minute: "2-digit",
-      hourCycle: "h23", // 24h clock
-    }).replace(",", ""); // remove comma between date + time
-  }
+      hourCycle: "h23",
+    }).replace(",", "");
+
 
   function buildSlTpByCoin(positions, openOrders) {
   const posMap = {};
@@ -888,6 +888,16 @@
   });
 
   return out;
+}
+
+  function normalizeTs(v) {
+  if (typeof v === "string") {
+    // remove commas in things like "1,762,096,363,016"
+    const cleaned = v.replace(/,/g, "");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+  return Number.isFinite(v) ? v : null;
 }
 
 function buildTable(container, rows, opts = {}) {
@@ -1152,13 +1162,16 @@ function buildTable(container, rows, opts = {}) {
       } else if (typeof v === "number") {
         // 🔹 Entry date formatting (positions + closed trades)
         if ((isPositions || isClosed) && k === "entryTs") {
-          let ts = v;
-          if (!Number.isFinite(ts) && isClosed) {
-            // fallback to startTs/openTs if entryTs isn't present as a field
-            const fallback = r.entryTs ?? r.startTs ?? r.openTs;
-            ts = Number(fallback);
-          }
-          td.textContent = Number.isFinite(ts) ? formatDateTime(ts) : "";
+          let ts =
+            normalizeTs(v) ??
+            normalizeTs(r.entryTs) ??
+            normalizeTs(r.startTs) ??
+            normalizeTs(r.openTs);
+        
+          td.textContent = ts ? formatDateTime(ts) : "";
+          tr.appendChild(td);
+          return;
+        }
 
         // 🔹 Duration (both open + closed)
         } else if (k === "durationMs") {
