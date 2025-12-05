@@ -2101,74 +2101,51 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     updateDirectionalBias(data);
 
     // ---------- TABLES ----------
-    if (updateTables) {
-      const positions = data.positions || data.openPositions || data.open || [];
-      const closed    = data.closed    || data.closedTrades || data.trades || [];
-
-      const positionsContainer = document.getElementById("positionsTableContainer");
-      const closedContainer    = document.getElementById("closedTableContainer");
-      const cashContainer      = document.getElementById("cashTableContainer");
-
-      // Prefer frontendOpenOrders if you add that later, for now:
-      const openOrders = data.openOrders || data.orders || [];
-
-      // Use backend "now" if available, else browser clock
-      const nowMs =
-        typeof data.debugWindow?.endMs === "number"
-          ? data.debugWindow.endMs
-          : Date.now();
-
-      // 🔹 Build TP/SL coverage map per coin
-      const slTpByCoin = buildSlTpByCoin(positions, openOrders);
-
-      // 🔹 Positions table
-      buildTable(positionsContainer, positions, {
-        type: "positions",
-        nowMs,
-        slTpByCoin,
-      });
-
-      // 🔹 Closed trades table
-      buildTable(closedContainer, closed, {
-        type: "closed",
-        nowMs,
-      });
-
+  if (updateTables) {
+    // Plan B: backend now owns these names, no more legacy fallbacks
+    const positions = Array.isArray(data.positions) ? data.positions : [];
+    const closed    = Array.isArray(data.closed) ? data.closed : [];
+  
+    const positionsContainer = document.getElementById("positionsTableContainer");
+    const closedContainer    = document.getElementById("closedTableContainer");
+    const cashContainer      = document.getElementById("cashTableContainer");
+  
+    // Keep a minimal alias for safety: openOrders → orders
+    const openOrdersRaw = data.openOrders ?? data.orders;
+    const openOrders = Array.isArray(openOrdersRaw) ? openOrdersRaw : [];
+  
+    // Use backend "now" if available, else browser clock
+    const nowMs =
+      typeof data.debugWindow?.endMs === "number"
+        ? data.debugWindow.endMs
+        : Date.now();
+  
+    // 🔹 Build TP/SL coverage map per coin
+    const slTpByCoin = buildSlTpByCoin(positions, openOrders);
+  
+    // 🔹 Build tables (positions gets slTpByCoin)
+    buildTable(positionsContainer, positions, {
+      type: "positions",
+      nowMs,
+      slTpByCoin,
+    });
+  
+    buildTable(closedContainer, closed, {
+      type: "closed",
+      nowMs,
+    });
+  
     // 🔹 Open orders tab
     renderOpenOrders(openOrders);
-
-    // 🔹 Build cashflows from fundingEvents.perpTransfer (real perp deposits/withdrawals)
-    const fundingRaw = Array.isArray(data.fundingEvents) ? data.fundingEvents : [];
-
-    const cashflows = fundingRaw
-      .filter(ev => ev && ev.kind === "perpTransfer")
-      .map(ev => {
-        const ts = Number(ev.time ?? ev.ts ?? 0) || null;
-        const rawUsd = Number(ev.usdcValue ?? ev.usd ?? ev.amount ?? 0);
-
-        // skip zero / non-finite
-        if (!Number.isFinite(rawUsd) || rawUsd === 0) return null;
-
-        // positive = deposit, negative = withdrawal
-        const kind = rawUsd > 0 ? "deposit" : "withdraw";
-
-        return {
-          ts,
-          kind,
-          usd: Math.abs(rawUsd),
-          note: ev.note || ev.subKind || "",
-        };
-      })
-      .filter(Boolean);
-
-    // 🔹 Cashflows table (uses renderCashflowsTable you already have)
-    renderCashflowsTable(cashContainer, cashflows);
-
+  
+    // 🔹 Funding events already handled elsewhere
+    renderFundingTable(cashContainer);
+  
     // 🔹 Tab counts
     document.getElementById("positionsCount").textContent = `(${positions.length})`;
     document.getElementById("closedCount").textContent    = `(${closed.length})`;
-    document.getElementById("cashCount").textContent      = `(${cashflows.length})`;
-}   // 👈 keep this closing brace for if (updateTables)
+    document.getElementById("cashCount").textContent      = `(${fundingEventsAll.length})`;
+  }
 
   // ---------- CHART SERIES ----------
   // Perp balance series
