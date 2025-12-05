@@ -1171,6 +1171,7 @@ function buildTable(container, rows, opts = {}) {
           td.textContent = ts ? formatDateTime(ts) : "";
           tr.appendChild(td);
           return;
+          }
 
         // 🔹 Duration (both open + closed)
         } else if (k === "durationMs") {
