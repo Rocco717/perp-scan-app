@@ -899,8 +899,8 @@ function buildTable(container, rows, opts = {}) {
   }
 
   const isPositions = opts.type === "positions";
-  const isClosed = opts.type === "closed";
-  const nowMs = typeof opts.nowMs === "number" ? opts.nowMs : Date.now();
+  const isClosed    = opts.type === "closed";
+  const nowMs       = typeof opts.nowMs === "number" ? opts.nowMs : Date.now();
 
   // 🔹 For positions, compute durationMs from entryTs if not present
   if (isPositions) {
@@ -931,15 +931,15 @@ function buildTable(container, rows, opts = {}) {
         entryTs: "Entry Date",
         durationMs: "Duration",
       }
-      : isClosed
-      ? {
-          netPnl: "Net PnL",
-          sizeClosed: "Size Closed",
-          avgEntryPx: "Entry Price",
-          exitPx: "Exit Price",
-          entryTs: "Entry Date",       // 🔹 added
-          durationMs: "Duration",
-        }
+    : isClosed
+    ? {
+        netPnl: "Net PnL",
+        sizeClosed: "Size Closed",
+        avgEntryPx: "Entry Price",
+        exitPx: "Exit Price",
+        entryTs: "Entry Date",
+        durationMs: "Duration",
+      }
     : {};
 
   const hidden = isPositions
@@ -956,8 +956,8 @@ function buildTable(container, rows, opts = {}) {
     : isClosed
     ? new Set([
         "endTs",
-        "pnl",     // 🔹 hide raw pnl column
-        "pnlUsd",  // 🔹 (optional) hide usd variant if present
+        "pnl",     // hide raw pnl
+        "pnlUsd",  // hide usd variant if present
       ])
     : new Set([]);
 
@@ -971,28 +971,28 @@ function buildTable(container, rows, opts = {}) {
   // 🔹 Column ordering tweaks for positions
   if (isPositions) {
     // Ensure value comes right after side
-    const idxSide = keys.indexOf("side");
+    const idxSide  = keys.indexOf("side");
     const idxValue = keys.indexOf("value");
     if (idxSide !== -1 && idxValue !== -1 && idxValue !== idxSide + 1) {
       keys.splice(idxValue, 1);
       keys.splice(idxSide + 1, 0, "value");
     }
-  
+
     // Ensure entryTs comes before duration
     const idxEntry = keys.indexOf("entryTs");
-    const idxDur = keys.indexOf("durationMs");
+    const idxDur   = keys.indexOf("durationMs");
     if (idxEntry !== -1 && idxDur !== -1 && idxEntry > idxDur) {
       keys.splice(idxEntry, 1);
       keys.splice(idxDur, 0, "entryTs");
     }
-  
+
     // Put duration at the end
     const idxDuration = keys.indexOf("durationMs");
     if (idxDuration !== -1) {
       keys.splice(idxDuration, 1);
       keys.push("durationMs");
     }
-  
+
     // 🔹 INSERT: Full TP/SL column after "side"
     if (!keys.includes("fullTpSl")) {
       const idxSide2 = keys.indexOf("side");
@@ -1002,12 +1002,32 @@ function buildTable(container, rows, opts = {}) {
     }
   }
 
-    // 🔹 Column ordering tweaks for CLOSED trades
+  // 🔹 Column ordering + entry date support for CLOSED trades
   if (isClosed) {
+    // If backend doesn't send entryTs but does send startTs/openTs etc,
+    // we still want an "Entry Date" column.
+    const hasEntryTsKey   = keys.includes("entryTs");
+    const hasEntryTsValue = rows.some((r) =>
+      r &&
+      (
+        typeof r.entryTs === "number" ||
+        typeof r.startTs === "number" ||
+        typeof r.openTs  === "number"
+      )
+    );
+
+    if (!hasEntryTsKey && hasEntryTsValue) {
+      const idxDur = keys.indexOf("durationMs");
+      if (idxDur === -1) {
+        keys.push("entryTs");
+      } else {
+        keys.splice(idxDur, 0, "entryTs");
+      }
+    }
+
     // Ensure entryTs comes before durationMs
     const idxEntry = keys.indexOf("entryTs");
     const idxDur   = keys.indexOf("durationMs");
-
     if (idxEntry !== -1 && idxDur !== -1 && idxEntry > idxDur) {
       keys.splice(idxEntry, 1);
       keys.splice(idxDur, 0, "entryTs");
@@ -1020,16 +1040,17 @@ function buildTable(container, rows, opts = {}) {
       keys.push("durationMs");
     }
   }
-  
+
   if (!keys.length) {
     container.innerHTML =
       '<div style="padding:10px; font-size:0.78rem; color:var(--muted);">Unsupported row format.</div>';
     return;
   }
 
-  const table = document.createElement("table");
-  const thead = document.createElement("thead");
+  const table  = document.createElement("table");
+  const thead  = document.createElement("thead");
   const trHead = document.createElement("tr");
+
   keys.forEach((key) => {
     const th = document.createElement("th");
     th.textContent = displayNames[key] || key;
@@ -1039,53 +1060,49 @@ function buildTable(container, rows, opts = {}) {
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
+
   rows.forEach((r) => {
     const tr = document.createElement("tr");
+
     keys.forEach((k) => {
       const td = document.createElement("td");
       let v = r[k];
 
-      // Single full-exit TP/SL price only
+      // --- Single full-exit TP/SL price only (positions) ---
       if (isPositions && k === "fullTpSl") {
         const entry = opts.slTpByCoin?.[r.coin];
         let text = "";
-      
+
         if (entry) {
           const posSize = Math.abs(Number(r.size));
-      
+
           if (Number.isFinite(posSize) && posSize > 0) {
-            // "Full" = one order that closes ~100% of the position.
-            // If you want tolerance, change threshold to posSize * 0.95.
             const threshold = posSize;
-      
+
             const getOrderSize = (o) => {
               const raw = o.sz ?? o.size;
-              const n = Number(raw);
+              const n   = Number(raw);
               return Number.isFinite(n) ? Math.abs(n) : 0;
             };
-      
-            // Only keep orders that individually qualify as a "full exit"
+
             const qualifyingTps = entry.tps.filter((o) => getOrderSize(o) >= threshold);
             const qualifyingSls = entry.sls.filter((o) => getOrderSize(o) >= threshold);
-      
-            // We only want exactly ONE full TP or SL on each side
+
             const tpOrder = qualifyingTps.length === 1 ? qualifyingTps[0] : null;
             const slOrder = qualifyingSls.length === 1 ? qualifyingSls[0] : null;
-      
+
             const formatPx = (o) => {
               const isTrigger = o.isTrigger === true;
-            
               let raw;
               if (isTrigger) {
                 raw = o.triggerPx;
               } else {
                 raw = o.px ?? o.price;
               }
-            
-              const formatted = formatTokenPrice(raw);   // 🔥 unified dynamic decimals
-              return formatted;                           // may be "" if invalid
+              const formatted = formatTokenPrice(raw);
+              return formatted;
             };
-      
+
             const parts = [];
             if (tpOrder) {
               const px = formatPx(tpOrder);
@@ -1095,11 +1112,11 @@ function buildTable(container, rows, opts = {}) {
               const px = formatPx(slOrder);
               if (px) parts.push(`SL $${px}`);
             }
-      
+
             text = parts.join(" | ");
           }
         }
-      
+
         td.textContent = text;
         tr.appendChild(td);
         return;
@@ -1108,7 +1125,7 @@ function buildTable(container, rows, opts = {}) {
       // 🔹 Direction (positions): "Long - 5x"
       if (isPositions && k === "side") {
         const sideText = v == null ? "" : String(v);
-        const lev = typeof r.leverage === "number" ? r.leverage : null;
+        const lev      = typeof r.leverage === "number" ? r.leverage : null;
         td.textContent = lev ? `${sideText} - ${lev}x` : sideText;
 
       // 🔹 Position Value cell: main value + size underneath
@@ -1120,7 +1137,7 @@ function buildTable(container, rows, opts = {}) {
             ? ""
             : String(v);
 
-        const sz = typeof r.size === "number" ? r.size : null;
+        const sz   = typeof r.size === "number" ? r.size : null;
         const coin = r.coin ? String(r.coin).toUpperCase() : "";
         const sub =
           sz != null
@@ -1132,9 +1149,16 @@ function buildTable(container, rows, opts = {}) {
              <div style="font-size:0.78rem; color: var(--muted); margin-top:2px;">${sub}</div>`
           : `<div>${main}</div>`;
 
+      } else if (typeof v === "number") {
         // 🔹 Entry date formatting (positions + closed trades)
         if ((isPositions || isClosed) && k === "entryTs") {
-          td.textContent = formatDateTime(v);
+          let ts = v;
+          if (!Number.isFinite(ts) && isClosed) {
+            // fallback to startTs/openTs if entryTs isn't present as a field
+            const fallback = r.entryTs ?? r.startTs ?? r.openTs;
+            ts = Number(fallback);
+          }
+          td.textContent = Number.isFinite(ts) ? formatDateTime(ts) : "";
 
         // 🔹 Duration (both open + closed)
         } else if (k === "durationMs") {
@@ -1142,7 +1166,7 @@ function buildTable(container, rows, opts = {}) {
 
         // 🔹 unrealizedPnl + roePct → "-$2,870.69 (-51.78%)"
         } else if (k === "unrealizedPnl") {
-          const sign = v >= 0 ? "" : "-";
+          const sign     = v >= 0 ? "" : "-";
           const baseText = sign + "$" + formatNumber(Math.abs(v), 2);
 
           const roe = typeof r.roePct === "number" ? r.roePct : null;
@@ -1157,20 +1181,20 @@ function buildTable(container, rows, opts = {}) {
           if (v > 0) td.style.color = "var(--success)";
           if (v < 0) td.style.color = "var(--danger)";
 
-          // 🔹 All other numeric fields
-          } else {
-            if (
-              k === "entryPx" ||
-              k === "markPx" ||
-              k === "avgEntryPx" ||    // 🔥 new
-              k === "exitPx"           // 🔥 new
-            ) {
-              const pxText = formatTokenPrice(v);
-              td.textContent = pxText ? "$" + pxText : "";
-            } else {
-              td.textContent = formatNumber(v, 2);
-            }
-          }
+        // 🔹 Price-like fields
+        } else if (
+          k === "entryPx" ||
+          k === "markPx" ||
+          k === "avgEntryPx" ||
+          k === "exitPx"
+        ) {
+          const pxText = formatTokenPrice(v);
+          td.textContent = pxText ? "$" + pxText : "";
+
+        // 🔹 All other numeric fields
+        } else {
+          td.textContent = formatNumber(v, 2);
+        }
 
       } else {
         td.textContent = v == null ? "" : String(v);
@@ -1178,8 +1202,10 @@ function buildTable(container, rows, opts = {}) {
 
       tr.appendChild(td);
     });
+
     tbody.appendChild(tr);
   });
+
   table.appendChild(tbody);
   container.appendChild(table);
 }
