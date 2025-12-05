@@ -966,8 +966,10 @@ function buildTable(container, rows, opts = {}) {
     : isClosed
     ? new Set([
         "endTs",
-        "pnl",     // hide raw pnl
-        "pnlUsd",  // hide usd variant if present
+        "pnl",
+        "pnlUsd",
+        "startTs",   // 🔥 hide start timestamp
+        "openTs",    // 🔥 hide alternate HL entry timestamp if present
       ])
     : new Set([]);
 
