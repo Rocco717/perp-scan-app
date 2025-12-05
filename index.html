@@ -1916,24 +1916,28 @@ function updateDirectionalBias(data) {
   // -------- Meta badges (right side) --------
   const metaBadges = [];
 
+  // v2.8: fundingSummary is the canonical source for cashflow
+  const fundingSummary = data.fundingSummary || null;
+  let deposits = null;     // Deposits = totalReceived
+  let withdrawals = null;  // Withdrawals = totalPaid
+
+  if (fundingSummary) {
+    if (typeof fundingSummary.totalReceived === "number") {
+      deposits = fundingSummary.totalReceived;
+    }
+    if (typeof fundingSummary.totalPaid === "number") {
+      withdrawals = fundingSummary.totalPaid;
+    }
+  }
+
+  // Still allow fees from old summary/meta if they exist
   const anySummary =
     data.summary ||
     data.portfolioSummary ||
     data.portfolio ||
     data.meta ||
     null;
-  
-  // v2.8: adjustments is gone → no fallback to data.adjustments
-  const deposits =
-    anySummary?.deposits ??
-    anySummary?.deposited ??
-    null;
-  
-  const withdrawals =
-    anySummary?.withdrawals ??
-    anySummary?.withdrawn ??
-    null;
-  
+
   const fees = anySummary?.fees ?? null;
 
   if (deposits !== null) {
@@ -1964,8 +1968,7 @@ function updateDirectionalBias(data) {
     );
   }
 
-  // 🔹 v2.8: optional fundingSummary → "Net funding" badge
-  const fundingSummary = data.fundingSummary || null;
+  // "Net funding" from fundingSummary
   if (fundingSummary && typeof fundingSummary.netFunding === "number") {
     const nf = fundingSummary.netFunding;
     const color = nf >= 0 ? "green" : "red";
