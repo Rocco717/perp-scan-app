@@ -681,18 +681,67 @@
 
     // 🔹 Funding pagination state (ADD THIS)
   let fundingEventsAll = [];     // full list from Worker
-  let fundingPage = 0;           // 0 = newest page
-  const FUNDING_PAGE_SIZE = 10;  // 10 per page
   const DEFAULT_BASE_URL = "https://perp-scan-live.liam-alerts.workers.dev";
 
     function renderFundingTable(container) {
     if (!container) return;
 
-    const start = fundingPage * FUNDING_PAGE_SIZE;
-    const end   = start + FUNDING_PAGE_SIZE;
-    const page  = Array.isArray(fundingEventsAll)
-      ? fundingEventsAll.slice(start, end)
-      : [];
+function renderFundingTable(container) {
+  if (!container) return;
+
+  const list = Array.isArray(fundingEventsAll) ? fundingEventsAll : [];
+
+  const table = document.createElement("table");
+  table.className = "data-table";
+
+  const thead = document.createElement("thead");
+  thead.innerHTML = `
+    <tr>
+      <th>Date / Time</th>
+      <th>Type</th>
+      <th>Amount (USDC)</th>
+      <th>Note</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  if (!list.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td colspan="4" class="muted">
+        No deposits or withdrawals found.
+      </td>`;
+    tbody.appendChild(tr);
+  } else {
+    for (const ev of list) {
+      if (!ev) continue;
+
+      const ts   = Number(ev.time || ev.ts || 0);
+      const amt  = Number(ev.usdcValue || ev.amount || 0);
+      const note = ev.note || "";
+
+      const type = amt >= 0 ? "Deposit" : "Withdrawal";
+      const colorClass = amt >= 0 ? "pill-green" : "pill-red";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${ts ? formatDateTime(ts) : ""}</td>
+        <td>${type}</td>
+        <td class="${colorClass}">
+          ${amt >= 0 ? "+" : "-"}$${formatNumber(Math.abs(amt), 2)}
+        </td>
+        <td>${note}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  table.appendChild(tbody);
+  container.innerHTML = "";
+  container.appendChild(table);
+}
 
     const table = document.createElement("table");
     table.className = "data-table";
