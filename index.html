@@ -514,6 +514,27 @@
             Uses perp account value at the start and end of the selected timeframe.
           </div>
         </div>
+
+              <!-- === [FE BLOCK #2] Winrate section (closed trades) ================= -->
+        <div style="margin-top:4px; margin-bottom:8px;">
+          <div class="mini-label">
+            <span>Win rate (closed trades)</span>
+          </div>
+          <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:baseline;
+                margin-top:4px;
+                font-size:0.9rem;
+              ">
+            <span id="winrateValue" style="font-weight:500; color:var(--muted);">
+              --
+            </span>
+            <span id="winrateMeta" style="font-size:0.74rem; color:var(--muted);">
+              (0 trades)
+            </span>
+          </div>
+        </div>
       
         <!-- DIRECTIONAL BIAS (closed trades) -->
         <div class="mini-label" style="margin-top:10px;">
@@ -2185,9 +2206,9 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       ? "&positions=1&closed=1&entry=1&orders=1"
       : "&positions=0&closed=0&orders=0");
 
-  statusEl.textContent = "Fetching from " + url + " …";
-  statusEl.className = "status";
-  fetchBtn.disabled = true;
+    statusEl.textContent = "Fetching from " + url + " …";
+    statusEl.className = "status";
+    fetchBtn.disabled = true;
 
   try {
     const res = await fetch(url, {
@@ -2210,13 +2231,29 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       return;
     }
 
-      // 🔹 Keep latest state available for future refactors
-      appState.account = account;
-      appState.period  = uiRange;   // UI range, e.g. "90d"
-      appState.data    = data;
-
+    // 🔹 Keep latest state available for future refactors
+    appState.account = account;
+    appState.period  = uiRange;   // UI range, e.g. "90d"
+    appState.data    = data;
+    
+    // === [FE BLOCK #1] Analytics: Winrate + Trade Stats =======================
+    const analytics = data.analytics || {};
+    
+    const totalTrades       = analytics.totalTrades       ?? 0;
+    const winningTrades     = analytics.winningTrades     ?? 0;
+    const losingTrades      = analytics.losingTrades      ?? 0;
+    const breakevenTrades   = analytics.breakevenTrades   ?? 0;
+    const winRateFraction   = analytics.winRate; // 0–1 or null
+    
+    let winRateDisplay = "-";
+    if (typeof winRateFraction === "number") {
+      const pct = Math.round(winRateFraction * 1000) / 10;
+      winRateDisplay = `${pct}%`;
+    }
+    
     statusEl.textContent = "OK · Response received.";
     statusEl.className = "status status-ok";
+
 
     // raw JSON block
     const rawBlock = document.getElementById("rawJsonBlock");
@@ -2234,6 +2271,23 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
 
     // 🔹 Perp ROE card (left of chart)
     updateRoeCard(data, period);
+
+    // === [FE BLOCK #3A] Apply Winrate to Perp ROE card =========================
+    const winrateValueEl = document.getElementById("winrateValue");
+    const winrateMetaEl  = document.getElementById("winrateMeta");
+  
+    if (winrateValueEl) {
+      winrateValueEl.textContent = winRateDisplay;   // defined in FE BLOCK #1
+    }
+  
+    if (winrateMetaEl) {
+      if (typeof winRateFraction === "number" && totalTrades > 0) {
+        winrateMetaEl.textContent =
+          `(${totalTrades} trades — ${winningTrades} won, ${losingTrades} lost, ${breakevenTrades} breakeven)`;
+      } else {
+        winrateMetaEl.textContent = "(no closed trades in this window)";
+      }
+    }
 
     // 🔹 Directional bias (closed trades)
     updateDirectionalBias(data);
