@@ -540,6 +540,33 @@
             </span>
           </div>
         </div>
+
+        <!-- Max Drawdown -->
+        <div style="margin-top:6px; margin-bottom:10px;">
+          <div class="mini-label" style="color:#ffffff !important;">
+            <span style="font-weight:600;">Max drawdown</span>
+          </div>
+        
+          <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-top:4px;
+                font-size:0.95rem;
+                color:#ffffff;
+              ">
+            <!-- % drop from peak -->
+            <span id="maxDdValue" style="font-weight:600; color:#ffffff;">
+              --
+            </span>
+        
+            <!-- Dollar pain -->
+            <span id="maxDdMeta" style="font-size:0.78rem; color:var(--muted);">
+              --
+            </span>
+          </div>
+        </div>
+
       
         <!-- DIRECTIONAL BIAS (closed trades) -->
         <div class="mini-label" style="margin-top:10px;">
@@ -2263,6 +2290,33 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       const pct = Math.round(winRateFraction * 1000) / 10;
       winRateDisplay = `${pct}%`;
     }
+
+    const maxDrawdownPct = analytics.maxDrawdownPct;
+    const maxDrawdownAbs = analytics.maxDrawdownAbs;
+
+    let maxDdDisplay = "-";
+    let maxDdMetaDisplay = "";
+
+    // Percent: show like "−18.7%" (clamped to [-100, 0] by backend)
+    if (typeof maxDrawdownPct === "number") {
+      const pctAbs  = Math.round(Math.abs(maxDrawdownPct) * 10) / 10;
+      const sign    = maxDrawdownPct < 0 ? "−" : "";
+      maxDdDisplay  = `${sign}${pctAbs}%`;
+    }
+
+    // Dollars: show like "-$65,321"
+    if (typeof maxDrawdownAbs === "number" && maxDrawdownAbs > 0) {
+      const pretty = formatNumber(maxDrawdownAbs, 0); // 0 decimals, uses locale
+      maxDdMetaDisplay = `-$${pretty}`;
+    }
+
+    if (!maxDdMetaDisplay) {
+      if (typeof maxDrawdownPct === "number" && maxDrawdownPct === 0) {
+        maxDdMetaDisplay = "(no drawdown in this window)";
+      } else {
+        maxDdMetaDisplay = "(insufficient data for this window)";
+      }
+    }
     
     statusEl.textContent = "OK · Response received.";
     statusEl.className = "status status-ok";
@@ -2300,6 +2354,18 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       } else {
         winrateMetaEl.textContent = "(no closed trades in this window)";
       }
+    }
+
+    // === [FE BLOCK #3B] Apply Max Drawdown to Perp ROE card ==================
+    const maxDdValueEl = document.getElementById("maxDdValue");
+    const maxDdMetaEl  = document.getElementById("maxDdMeta");
+
+    if (maxDdValueEl) {
+      maxDdValueEl.textContent = maxDdDisplay; // from FE BLOCK #1
+    }
+
+    if (maxDdMetaEl) {
+      maxDdMetaEl.textContent = maxDdMetaDisplay;
     }
 
     // 🔹 Directional bias (closed trades)
