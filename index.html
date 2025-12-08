@@ -2347,18 +2347,26 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       }
     }
 
-        // === Average trades per day ===
+    // === Average trades per day ===
     const avgTradesPerDay = analytics.averageTradesPerDay;
-
+    
     let avgTradesPerDayDisplay = "-";
     let avgTradesPerDayMetaDisplay = "(no closed trades in this window)";
-
+    
     if (typeof avgTradesPerDay === "number" && avgTradesPerDay >= 0) {
       const rounded = Math.round(avgTradesPerDay * 100) / 100; // 2 decimals
-      avgTradesPerDayDisplay = String(rounded);
-
+    
       if (totalTrades > 0) {
+        if (rounded === 0 && avgTradesPerDay > 0) {
+          // Extremely small but nonzero activity
+          avgTradesPerDayDisplay = "<0.01";
+        } else {
+          avgTradesPerDayDisplay = String(rounded);
+        }
         avgTradesPerDayMetaDisplay = `${totalTrades} trades in this window`;
+      } else {
+        // No trades: keep "-" + default meta
+        avgTradesPerDayDisplay = "0";
       }
     }
 
