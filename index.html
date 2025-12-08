@@ -1004,47 +1004,23 @@ function buildTable(container, rows, opts = {}) {
     return true;
   });
 
-  // 🔹 Column ordering tweaks for positions
-  if (isPositions) {
-    // Ensure value comes right after side
-    const idxSide  = keys.indexOf("side");
-    const idxValue = keys.indexOf("value");
-    if (idxSide !== -1 && idxValue !== -1 && idxValue !== idxSide + 1) {
-      keys.splice(idxValue, 1);
-      keys.splice(idxSide + 1, 0, "value");
-    }
+// === HARD OVERRIDE ORDERING FOR POSITIONS ============================
+if (isPositions) {
+  const desired = [
+    "entryTs",          // Entry Date
+    "coin",             // Asset
+    "side",             // Direction
+    "value",            // Position Value / Size
+    "entryPx",          // Entry Price
+    "markPx",           // Current Price
+    "liqPx",            // Liq. price
+    "unrealizedPnl",    // Unrealized PnL
+    "fullTpSl",         // TP/SL price
+    "durationMs",       // Duration
+  ];
 
-    // Ensure entryTs comes before duration
-    const idxEntry = keys.indexOf("entryTs");
-    const idxDur   = keys.indexOf("durationMs");
-    if (idxEntry !== -1 && idxDur !== -1 && idxEntry > idxDur) {
-      keys.splice(idxEntry, 1);
-      keys.splice(idxDur, 0, "entryTs");
-    }
-
-    // Put duration at the end
-    const idxDuration = keys.indexOf("durationMs");
-    if (idxDuration !== -1) {
-      keys.splice(idxDuration, 1);
-      keys.push("durationMs");
-    }
-
-    // 🔹 INSERT: Full TP/SL column after "side"
-    if (!keys.includes("fullTpSl")) {
-      const idxSide2 = keys.indexOf("side");
-      if (idxSide2 !== -1) {
-        keys.splice(idxSide2 + 1, 0, "fullTpSl");
-      }
-    }
-
-    // 🔹 INSERT: liqPx column right after markPx
-    if (!keys.includes("liqPx")) {
-      const idxMark = keys.indexOf("markPx");
-      if (idxMark !== -1) {
-        keys.splice(idxMark + 1, 0, "liqPx");
-      }
-    }
-  }
+  keys = desired.filter(k => keys.includes(k));
+}
 
   // 🔹 Column ordering + entry date support for CLOSED trades
   if (isClosed) {
