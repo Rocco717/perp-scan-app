@@ -550,11 +550,27 @@
           </div>
         </div>
       
-        <!-- ROW 3: [ empty ][ Max drawdown ] -->
+        <!-- ROW 3: [ Avg trades/day ][ Max drawdown ] -->
         <div style="display:flex;">
-          <!-- Left box (empty for future metric) -->
+          <!-- Left box: Average trades per day -->
           <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
-            <!-- reserved for future metric -->
+            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
+              <span style="font-weight:600;">Avg trades / day</span>
+            </div>
+            <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  font-size:0.95rem;
+                  color:#ffffff;
+                ">
+              <span id="avgTradesPerDayValue" style="font-weight:600; color:#ffffff;">
+                --
+              </span>
+              <span id="avgTradesPerDayMeta" style="font-size:0.78rem; color:var(--muted);">
+                (no closed trades in this window)
+              </span>
+            </div>
           </div>
       
           <!-- Right box: Max drawdown -->
@@ -2330,7 +2346,22 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         maxDdMetaDisplay = "(insufficient data for this window)";
       }
     }
-    
+
+        // === Average trades per day ===
+    const avgTradesPerDay = analytics.averageTradesPerDay;
+
+    let avgTradesPerDayDisplay = "-";
+    let avgTradesPerDayMetaDisplay = "(no closed trades in this window)";
+
+    if (typeof avgTradesPerDay === "number" && avgTradesPerDay >= 0) {
+      const rounded = Math.round(avgTradesPerDay * 100) / 100; // 2 decimals
+      avgTradesPerDayDisplay = String(rounded);
+
+      if (totalTrades > 0) {
+        avgTradesPerDayMetaDisplay = `${totalTrades} trades in this window`;
+      }
+    }
+
     statusEl.textContent = "OK · Response received.";
     statusEl.className = "status status-ok";
 
@@ -2379,6 +2410,18 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
 
     if (maxDdMetaEl) {
       maxDdMetaEl.textContent = maxDdMetaDisplay;
+    }
+
+    // === [FE BLOCK #3C] Apply Avg trades/day to Perp ROE card ================
+    const avgTpdValueEl = document.getElementById("avgTradesPerDayValue");
+    const avgTpdMetaEl  = document.getElementById("avgTradesPerDayMeta");
+
+    if (avgTpdValueEl) {
+      avgTpdValueEl.textContent = avgTradesPerDayDisplay;
+    }
+
+    if (avgTpdMetaEl) {
+      avgTpdMetaEl.textContent = avgTradesPerDayMetaDisplay;
     }
 
     // 🔹 Directional bias (closed trades)
