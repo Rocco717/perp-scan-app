@@ -495,91 +495,91 @@
       <!-- LEFT: Perp ROE + Directional bias -->
       <section class="card" id="summary-card" style="display:none; height:100%;">
 
-        <!-- SUMMARY METRICS GRID: 3 rows × 2 columns -->
-        <div style="margin-top:8px; border-top:1px solid #111111; border-bottom:1px solid #111111;">
-
-          <!-- ROW 1: [ empty ][ Perp ROE ] -->
-          <div style="display:flex; border-bottom:1px solid #111111;">
-            <!-- Left box (empty for future metric) -->
-            <div style="flex:1; padding:8px 10px; border-right:1px solid #111111;">
-              <!-- reserved for future metric -->
+      <!-- SUMMARY METRICS GRID: 3 rows × 2 columns -->
+      <div style="margin-top:8px; border-top:1px solid #1e1e1e; border-bottom:1px solid #1e1e1e;">
+      
+        <!-- ROW 1: [ empty ][ Perp ROE ] -->
+        <div style="display:flex; border-bottom:1px solid #1e1e1e;">
+          <!-- Left box (empty for future metric) -->
+          <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
+            <!-- reserved for future metric -->
+          </div>
+      
+          <!-- Right box: Perp ROE -->
+          <div style="flex:1; padding:8px 10px;">
+            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
+              <span style="font-weight:600;">Perp ROE</span>
             </div>
-
-            <!-- Right box: Perp ROE -->
-            <div style="flex:1; padding:8px 10px;">
-              <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
-                <span style="font-weight:600;">Perp ROE</span>
-              </div>
-              <div id="roeValue"
-                   style="font-size:1.3rem; font-weight:600; color:#ffffff;">
-                --
-              </div>
-              <div id="roeMeta"
-                   style="font-size:0.78rem; color:var(--muted); margin-top:2px;">
-                Uses perp account value at the start and end of the selected timeframe.
-              </div>
+            <div id="roeValue"
+                 style="font-size:1.3rem; font-weight:600; color:#ffffff;">
+              --
+            </div>
+            <div id="roeMeta"
+                 style="font-size:0.78rem; color:var(--muted); margin-top:2px;">
+              Uses perp account value at the start and end of the selected timeframe.
             </div>
           </div>
-
-          <!-- ROW 2: [ empty ][ Winrate ] -->
-          <div style="display:flex; border-bottom:1px solid #111111;">
-            <!-- Left box (empty for future metric) -->
-            <div style="flex:1; padding:8px 10px; border-right:1px solid #111111;">
-              <!-- reserved for future metric -->
-            </div>
-
-            <!-- Right box: Winrate -->
-            <div style="flex:1; padding:8px 10px;">
-              <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
-                <span style="font-weight:600;">Winrate</span>
-              </div>
-              <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    align-items:center;
-                    font-size:0.95rem;
-                    color:#ffffff;
-                  ">
-                <span id="winrateValue" style="font-weight:600; color:#ffffff;">
-                  --
-                </span>
-                <span id="winrateMeta" style="font-size:0.78rem; color:var(--muted);">
-                  (no closed trades in this window)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- ROW 3: [ empty ][ Max drawdown ] -->
-          <div style="display:flex;">
-            <!-- Left box (empty for future metric) -->
-            <div style="flex:1; padding:8px 10px; border-right:1px solid #111111;">
-              <!-- reserved for future metric -->
-            </div>
-
-            <!-- Right box: Max drawdown -->
-            <div style="flex:1; padding:8px 10px;">
-              <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
-                <span style="font-weight:600;">Max drawdown</span>
-              </div>
-              <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    align-items:center;
-                    font-size:0.95rem;
-                    color:#ffffff;
-                  ">
-                <span id="maxDdValue" style="font-weight:600; color:#ffffff;">
-                  --
-                </span>
-                <span id="maxDdMeta" style="font-size:0.78rem; color:var(--muted);">
-                  --
-                </span>
-              </div>
-            </div>
-          </div>
-
         </div>
+      
+        <!-- ROW 2: [ empty ][ Winrate ] -->
+        <div style="display:flex; border-bottom:1px solid #1e1e1e;">
+          <!-- Left box (empty for future metric) -->
+          <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
+            <!-- reserved for future metric -->
+          </div>
+      
+          <!-- Right box: Winrate -->
+          <div style="flex:1; padding:8px 10px;">
+            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
+              <span style="font-weight:600;">Winrate</span>
+            </div>
+            <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  font-size:0.95rem;
+                  color:#ffffff;
+                ">
+              <span id="winrateValue" style="font-weight:600; color:#ffffff;">
+                --
+              </span>
+              <span id="winrateMeta" style="font-size:0.78rem; color:var(--muted);">
+                (no closed trades in this window)
+              </span>
+            </div>
+          </div>
+        </div>
+      
+        <!-- ROW 3: [ empty ][ Max drawdown ] -->
+        <div style="display:flex;">
+          <!-- Left box (empty for future metric) -->
+          <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
+            <!-- reserved for future metric -->
+          </div>
+      
+          <!-- Right box: Max drawdown -->
+          <div style="flex:1; padding:8px 10px;">
+            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
+              <span style="font-weight:600;">Max drawdown</span>
+            </div>
+            <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  font-size:0.95rem;
+                  color:#ffffff;
+                ">
+              <span id="maxDdValue" style="font-weight:600; color:#ffffff;">
+                --
+              </span>
+              <span id="maxDdMeta" style="font-size:0.78rem; color:var(--muted);">
+                --
+              </span>
+            </div>
+          </div>
+        </div>
+      
+      </div>
 
         <!-- DIRECTIONAL BIAS (closed trades) -->
         <div class="mini-label" style="margin-top:10px;">
