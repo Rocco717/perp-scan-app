@@ -960,6 +960,7 @@ function buildTable(container, rows, opts = {}) {
         fullTpSl: "TP/SL price",
         entryPx: "Entry Price",
         markPx: "Current Price",
+        liqPx: "Liq. price",
         unrealizedPnl: "Unrealized PnL",
         entryTs: "Entry Date",
         durationMs: "Duration",
@@ -1033,6 +1034,14 @@ function buildTable(container, rows, opts = {}) {
       const idxSide2 = keys.indexOf("side");
       if (idxSide2 !== -1) {
         keys.splice(idxSide2 + 1, 0, "fullTpSl");
+      }
+    }
+
+    // 🔹 INSERT: liqPx column right after markPx
+    if (!keys.includes("liqPx")) {
+      const idxMark = keys.indexOf("markPx");
+      if (idxMark !== -1) {
+        keys.splice(idxMark + 1, 0, "liqPx");
       }
     }
   }
@@ -1199,6 +1208,29 @@ function buildTable(container, rows, opts = {}) {
           ? `<div>${main}</div>
              <div style="font-size:0.78rem; color: var(--muted); margin-top:2px;">${sub}</div>`
           : `<div>${main}</div>`;
+
+        // --- NEW: Liquidation price + distance % ---
+        if (isPositions && k === "liqPx") {
+          const liq = r.liqPx;
+          const dist = r.liqDistancePct;
+        
+          let text = "--";
+        
+          if (Number.isFinite(liq)) {
+            const priceStr = "$" + formatTokenPrice(liq);
+        
+            if (Number.isFinite(dist)) {
+              const distStr = formatNumber(dist, 1) + "%";
+              text = `${priceStr} (${distStr})`;
+            } else {
+              text = priceStr;
+            }
+          }
+        
+          td.textContent = text;
+          tr.appendChild(td);
+          return;
+        }
 
       } else if (typeof v === "number") {
         // 🔹 Duration (both open + closed)
