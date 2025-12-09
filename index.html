@@ -2175,13 +2175,14 @@ function updateDirectionalBias(data) {
   }
 }
 
-  function updateRoeCard(data, period) {
+function updateRoeCard(data, period) {
   const summaryCard   = document.getElementById("summary-card");
   const roeValueEl    = document.getElementById("roeValue");
-  const roeRangeLabel = document.getElementById("roeRangeLabel");
+  const roeRangeLabel = document.getElementById("roeRangeLabel"); // optional now
   const roeMetaEl     = document.getElementById("roeMeta");
 
-  if (!summaryCard || !roeValueEl || !roeRangeLabel || !roeMetaEl) return;
+  // Only require card + main value + meta
+  if (!summaryCard || !roeValueEl || !roeMetaEl) return;
 
   // Pull ROI + balances from response
   const roiObj   = (data && data.roi) || {};
@@ -2237,7 +2238,9 @@ function updateDirectionalBias(data) {
   else if (currentRange === "30d") rangeLabelText = "Last 30 days";
   else if (currentRange === "90d") rangeLabelText = "Last 90 days";
 
-  roeRangeLabel.textContent = "Return on equity · " + rangeLabelText;
+  if (roeRangeLabel) {
+    roeRangeLabel.textContent = "Return on equity · " + rangeLabelText;
+  }
 
   // Meta line
   if (showRoe && startValueTrading !== null && balances.perp_now != null) {
