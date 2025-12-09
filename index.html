@@ -498,11 +498,21 @@
       <!-- SUMMARY METRICS GRID: 3 rows × 2 columns -->
       <div style="margin-top:8px; border-top:1px solid #1e1e1e; border-bottom:1px solid #1e1e1e;">
       
-        <!-- ROW 1: [ empty ][ Perp ROE ] -->
+        <!-- ROW 1: [ Profit factor ][ Perp ROE ] -->
         <div style="display:flex; border-bottom:1px solid #1e1e1e;">
-          <!-- Left box (empty for future metric) -->
+          <!-- Left box: Profit factor -->
           <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
-            <!-- reserved for future metric -->
+            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
+              <span style="font-weight:600;">Profit factor</span>
+            </div>
+            <div id="profitFactorValue"
+                 style="font-size:1.1rem; font-weight:600; color:#ffffff;">
+              --
+            </div>
+            <div id="profitFactorMeta"
+                 style="font-size:0.78rem; color:var(--muted); margin-top:2px;">
+              Ratio of total realized gains to total realized losses on closed trades in this window.
+            </div>
           </div>
       
           <!-- Right box: Perp ROE -->
@@ -2330,6 +2340,11 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const breakevenTrades   = analytics.breakevenTrades   ?? 0;
     const winRateFraction   = analytics.winRate; // 0–1 or null
 
+    const profitFactorRaw =
+      typeof analytics.profitFactor === "number"
+        ? analytics.profitFactor
+        : null;
+
     // All-time stats (independent of current window)
     const avgHoldTimeMsAllTime = analytics.averageHoldTimeMsAllTime;
     const totalTradesAllTime   = analytics.totalTradesAllTime ?? null;
@@ -2338,6 +2353,27 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     if (typeof winRateFraction === "number") {
       const pct = Math.round(winRateFraction * 1000) / 10;
       winRateDisplay = `${pct}%`;
+    }
+
+    // === Profit factor display ===
+    let profitFactorDisplay = "-";
+    let profitFactorMetaDisplay =
+      "(needs at least 1 winning and 1 losing trade in this window)";
+
+    if (profitFactorRaw !== null) {
+      const pfRounded = Math.round(profitFactorRaw * 100) / 100;
+      profitFactorDisplay = String(pfRounded);
+
+      if (profitFactorRaw > 1) {
+        profitFactorMetaDisplay =
+          "Profitable over closed trades in this window";
+      } else if (profitFactorRaw === 1) {
+        profitFactorMetaDisplay =
+          "Break-even over closed trades in this window";
+      } else {
+        profitFactorMetaDisplay =
+          "Unprofitable over closed trades in this window";
+      }
     }
 
     const maxDrawdownPct = analytics.maxDrawdownPct;
@@ -2477,6 +2513,32 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
 
     if (avgHoldTimeMetaEl) {
       avgHoldTimeMetaEl.textContent = avgHoldTimeMetaDisplay;
+    }
+
+    
+    // === [FE BLOCK #3E] Apply Profit factor (window-scoped) ==================
+    const pfValueEl = document.getElementById("profitFactorValue");
+    const pfMetaEl  = document.getElementById("profitFactorMeta");
+
+    if (pfValueEl) {
+      pfValueEl.textContent = profitFactorDisplay;
+
+      // Default color
+      pfValueEl.style.color = "#ffffff";
+
+      if (profitFactorRaw !== null) {
+        if (profitFactorRaw > 1) {
+          pfValueEl.style.color = "var(--success)";
+        } else if (profitFactorRaw < 1) {
+          pfValueEl.style.color = "var(--danger)";
+        } else {
+          pfValueEl.style.color = "var(--muted)";
+        }
+      }
+    }
+
+    if (pfMetaEl) {
+      pfMetaEl.textContent = profitFactorMetaDisplay;
     }
 
     // 🔹 Directional bias (closed trades)
