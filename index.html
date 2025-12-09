@@ -495,9 +495,9 @@
       <!-- LEFT: Perp ROE + Directional bias -->
       <section class="card" id="summary-card" style="display:none; height:100%;">
 
-      <!-- SUMMARY METRICS GRID: 3 rows × 2 columns -->
+      <!-- SUMMARY METRICS GRID: 4 rows × 2 columns -->
       <div style="margin-top:8px; border-top:1px solid #1e1e1e; border-bottom:1px solid #1e1e1e;">
-      
+
         <!-- ROW 1: [ Profit factor ][ Perp ROE ] -->
         <div style="display:flex; border-bottom:1px solid #1e1e1e;">
           <!-- Left box: Profit factor -->
@@ -514,7 +514,7 @@
               Ratio of total realized gains to total realized losses on closed trades in this window.
             </div>
           </div>
-      
+
           <!-- Right box: Perp ROE -->
           <div style="flex:1; padding:8px 10px;">
             <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
@@ -530,77 +530,67 @@
             </div>
           </div>
         </div>
-      
+
         <!-- ROW 2: [ Avg hold time (all-time) ][ Winrate ] -->
         <div style="display:flex; border-bottom:1px solid #1e1e1e;">
-          <!-- Left box: Avg hold time (all-time) -->
+          <!-- Left box: Avg hold time -->
           <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
             <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
               <span style="font-weight:600;">Avg hold time</span>
             </div>
-            <div style="
-                  display:flex;
-                  justify-content:space-between;
-                  align-items:center;
-                  font-size:0.95rem;
-                  color:#ffffff;
-                ">
-              <span id="avgHoldTimeValue" style="font-weight:600; color:#ffffff;">
-                --
-              </span>
-              <span id="avgHoldTimeMeta" style="font-size:0.78rem; color:var(--muted);">
-                (all-time)
-              </span>
+            <div id="avgHoldTimeValue"
+                 style="font-size:0.95rem; font-weight:600; color:#ffffff;">
+              --
+            </div>
+            <div id="avgHoldTimeMeta"
+                 style="font-size:0.78rem; color:var(--muted); margin-top:2px;">
+              (all-time)
             </div>
           </div>
-      
+
           <!-- Right box: Winrate -->
           <div style="flex:1; padding:8px 10px;">
             <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
               <span style="font-weight:600;">Winrate</span>
             </div>
-            <div style="
-                  display:flex;
-                  justify-content:space-between;
-                  align-items:center;
-                  font-size:0.95rem;
-                  color:#ffffff;
-                ">
-              <span id="winrateValue" style="font-weight:600; color:#ffffff;">
-                --
-              </span>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.95rem; color:#ffffff;">
+              <span id="winrateValue" style="font-weight:600; color:#ffffff;">--</span>
               <span id="winrateMeta" style="font-size:0.78rem; color:var(--muted);">
                 (no closed trades in this window)
               </span>
             </div>
           </div>
         </div>
-      
+
         <!-- ROW 3: [ Avg trades/day ][ Max drawdown ] -->
-        <div style="display:flex;">
+        <div style="display:flex; border-bottom:1px solid #1e1e1e;">
           <!-- Left box: Average trades per day -->
           <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
             <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
               <span style="font-weight:600;">Avg trades / day</span>
             </div>
-            <div style="
-                  display:flex;
-                  justify-content:space-between;
-                  align-items:center;
-                  font-size:0.95rem;
-                  color:#ffffff;
-                ">
-              <span id="avgTradesPerDayValue" style="font-weight:600; color:#ffffff;">
-                --
-              </span>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.95rem; color:#ffffff;">
+              <span id="avgTradesPerDayValue" style="font-weight:600; color:#ffffff;">--</span>
               <span id="avgTradesPerDayMeta" style="font-size:0.78rem; color:var(--muted);">
                 (no closed trades in this window)
               </span>
             </div>
           </div>
 
+          <!-- Right box: Max drawdown -->
+          <div style="flex:1; padding:8px 10px;">
+            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
+              <span style="font-weight:600;">Max drawdown</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.95rem; color:#ffffff;">
+              <span id="maxDdValue" style="font-weight:600; color:#ffffff;">--</span>
+              <span id="maxDdMeta" style="font-size:0.78rem; color:var(--muted);">--</span>
+            </div>
+          </div>
+        </div>
+
         <!-- ROW 4: [ Expectancy / trade ][ Trades in window ] -->
-        <div style="display:flex; border-top:1px solid #1e1e1e;">
+        <div style="display:flex;">
           <!-- Left box: Expectancy per trade -->
           <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
             <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
@@ -632,29 +622,6 @@
           </div>
         </div>
 
-      
-          <!-- Right box: Max drawdown -->
-          <div style="flex:1; padding:8px 10px;">
-            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
-              <span style="font-weight:600;">Max drawdown</span>
-            </div>
-            <div style="
-                  display:flex;
-                  justify-content:space-between;
-                  align-items:center;
-                  font-size:0.95rem;
-                  color:#ffffff;
-                ">
-              <span id="maxDdValue" style="font-weight:600; color:#ffffff;">
-                --
-              </span>
-              <span id="maxDdMeta" style="font-size:0.78rem; color:var(--muted);">
-                --
-              </span>
-            </div>
-          </div>
-        </div>
-      
       </div>
 
         <!-- DIRECTIONAL BIAS (closed trades) -->
