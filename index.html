@@ -1969,8 +1969,10 @@ function updateDirectionalBias(data) {
   const roeValueEl    = document.getElementById("roeValue");
   const roeRangeLabel = document.getElementById("roeRangeLabel");
   const roeMetaEl     = document.getElementById("roeMeta");
-
-  if (!summaryCard || !roeValueEl || !roeRangeLabel || !roeMetaEl) return;
+  
+  // We only require the card, the main value, and meta.
+  // roeRangeLabel is optional (you removed it from the DOM).
+  if (!summaryCard || !roeValueEl || !roeMetaEl) return;
 
   // Always show the card in detail mode (setDetailMode already hides on home)
   summaryCard.style.display = "";
@@ -2015,8 +2017,10 @@ function updateDirectionalBias(data) {
   else if (currentRange === "7d")  rangeLabelText = "Last 7 days";
   else if (currentRange === "30d") rangeLabelText = "Last 30 days";
   else if (currentRange === "90d") rangeLabelText = "Last 90 days";
-
-  roeRangeLabel.textContent = "Return on equity · " + rangeLabelText;
+  
+  if (roeRangeLabel) {
+    roeRangeLabel.textContent = "Return on equity · " + rangeLabelText;
+  }
 
   // Meta line
   if (showRoe && startValueTrading !== null && balances.perp_now != null) {
