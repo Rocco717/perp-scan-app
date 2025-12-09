@@ -589,8 +589,9 @@
           </div>
         </div>
 
-        <!-- ROW 4: [ Expectancy / trade ][ Trades in window ] -->
+        <!-- ROW 4: [ Expectancy / trade ][ Reserved ] -->
         <div style="display:flex;">
+          
           <!-- Left box: Expectancy per trade -->
           <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
             <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
@@ -605,24 +606,24 @@
               Per closed trade in this window.
             </div>
           </div>
-
-          <!-- Right box: Trades in window -->
+        
+          <!-- Right box: Reserved for future metric -->
           <div style="flex:1; padding:8px 10px;">
             <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
-              <span style="font-weight:600;">Trades in window</span>
+              <span style="font-weight:600;">Reserved</span>
             </div>
-            <div id="tradesWindowValue"
-                 style="font-size:0.95rem; font-weight:600; color:#ffffff;">
+            <div id="reservedValue"
+                 style="font-size:0.95rem; font-weight:600; color:#6b6b6b;">
               --
             </div>
-            <div id="tradesWindowMeta"
+            <div id="reservedMeta"
                  style="font-size:0.78rem; color:var(--muted); margin-top:2px;">
-              Closed trades used for winrate, PF, expectancy.
+              <!-- intentionally empty -->
             </div>
           </div>
+        
         </div>
 
-      </div>
 
         <!-- DIRECTIONAL BIAS (closed trades) -->
         <div class="mini-label" style="margin-top:10px;">
