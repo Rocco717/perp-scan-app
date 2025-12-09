@@ -521,11 +521,27 @@
           </div>
         </div>
       
-        <!-- ROW 2: [ empty ][ Winrate ] -->
+        <!-- ROW 2: [ Avg hold time (all-time) ][ Winrate ] -->
         <div style="display:flex; border-bottom:1px solid #1e1e1e;">
-          <!-- Left box (empty for future metric) -->
+          <!-- Left box: Avg hold time (all-time) -->
           <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
-            <!-- reserved for future metric -->
+            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
+              <span style="font-weight:600;">Avg hold time</span>
+            </div>
+            <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:center;
+                  font-size:0.95rem;
+                  color:#ffffff;
+                ">
+              <span id="avgHoldTimeValue" style="font-weight:600; color:#ffffff;">
+                --
+              </span>
+              <span id="avgHoldTimeMeta" style="font-size:0.78rem; color:var(--muted);">
+                (all-time)
+              </span>
+            </div>
           </div>
       
           <!-- Right box: Winrate -->
@@ -2313,6 +2329,10 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     const losingTrades      = analytics.losingTrades      ?? 0;
     const breakevenTrades   = analytics.breakevenTrades   ?? 0;
     const winRateFraction   = analytics.winRate; // 0–1 or null
+
+    // All-time stats (independent of current window)
+    const avgHoldTimeMsAllTime = analytics.averageHoldTimeMsAllTime;
+    const totalTradesAllTime   = analytics.totalTradesAllTime ?? null;
     
     let winRateDisplay = "-";
     if (typeof winRateFraction === "number") {
@@ -2367,6 +2387,21 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       } else {
         // No trades: keep "-" + default meta
         avgTradesPerDayDisplay = "0";
+      }
+    }
+
+    // === Average hold time (ALL-TIME) ===
+    let avgHoldTimeDisplay = "--";
+    let avgHoldTimeMetaDisplay = "(no closed trades yet)";
+
+    if (typeof avgHoldTimeMsAllTime === "number" && avgHoldTimeMsAllTime > 0) {
+      // Reuse existing helper
+      avgHoldTimeDisplay = humanizeDuration(avgHoldTimeMsAllTime);
+
+      if (typeof totalTradesAllTime === "number" && totalTradesAllTime > 0) {
+        avgHoldTimeMetaDisplay = `All-time across ${totalTradesAllTime} closed trades`;
+      } else {
+        avgHoldTimeMetaDisplay = "All-time across closed trades";
       }
     }
 
@@ -2430,6 +2465,18 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
 
     if (avgTpdMetaEl) {
       avgTpdMetaEl.textContent = avgTradesPerDayMetaDisplay;
+    }
+
+    // === [FE BLOCK #3D] Apply Avg hold time (all-time) ========================
+    const avgHoldTimeValueEl = document.getElementById("avgHoldTimeValue");
+    const avgHoldTimeMetaEl  = document.getElementById("avgHoldTimeMeta");
+
+    if (avgHoldTimeValueEl) {
+      avgHoldTimeValueEl.textContent = avgHoldTimeDisplay;
+    }
+
+    if (avgHoldTimeMetaEl) {
+      avgHoldTimeMetaEl.textContent = avgHoldTimeMetaDisplay;
     }
 
     // 🔹 Directional bias (closed trades)
