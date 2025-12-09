@@ -598,6 +598,40 @@
               </span>
             </div>
           </div>
+
+        <!-- ROW 4: [ Expectancy / trade ][ Trades in window ] -->
+        <div style="display:flex; border-top:1px solid #1e1e1e;">
+          <!-- Left box: Expectancy per trade -->
+          <div style="flex:1; padding:8px 10px; border-right:1px solid #1e1e1e;">
+            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
+              <span style="font-weight:600;">Expectancy / trade</span>
+            </div>
+            <div id="expectancyValue"
+                 style="font-size:0.95rem; font-weight:600; color:#ffffff;">
+              --
+            </div>
+            <div id="expectancyMeta"
+                 style="font-size:0.78rem; color:var(--muted); margin-top:2px;">
+              Per closed trade in this window.
+            </div>
+          </div>
+
+          <!-- Right box: Trades in window -->
+          <div style="flex:1; padding:8px 10px;">
+            <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
+              <span style="font-weight:600;">Trades in window</span>
+            </div>
+            <div id="tradesWindowValue"
+                 style="font-size:0.95rem; font-weight:600; color:#ffffff;">
+              --
+            </div>
+            <div id="tradesWindowMeta"
+                 style="font-size:0.78rem; color:var(--muted); margin-top:2px;">
+              Closed trades used for winrate, PF, expectancy.
+            </div>
+          </div>
+        </div>
+
       
           <!-- Right box: Max drawdown -->
           <div style="flex:1; padding:8px 10px;">
@@ -2345,6 +2379,11 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         ? analytics.profitFactor
         : null;
 
+    const expectancyPerTrade =
+      typeof analytics.expectancyPerTrade === "number"
+        ? analytics.expectancyPerTrade
+        : null;
+
     // All-time stats (independent of current window)
     const avgHoldTimeMsAllTime = analytics.averageHoldTimeMsAllTime;
     const totalTradesAllTime   = analytics.totalTradesAllTime ?? null;
@@ -2439,6 +2478,37 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       } else {
         avgHoldTimeMetaDisplay = "All-time across closed trades";
       }
+    }
+
+    // === Expectancy per trade (window-scoped) ===
+    let expectancyDisplay = "--";
+    let expectancyMetaDisplay = "Per closed trade in this window.";
+
+    if (expectancyPerTrade !== null) {
+      const sign = expectancyPerTrade >= 0 ? "+" : "-";
+      const abs  = Math.abs(expectancyPerTrade);
+      const formatted = "$" + formatNumber(abs, 2);
+
+      expectancyDisplay = `${sign}${formatted}`;
+
+      if (expectancyPerTrade > 0) {
+        expectancyMetaDisplay = "Average gain per closed trade in this window.";
+      } else if (expectancyPerTrade < 0) {
+        expectancyMetaDisplay = "Average loss per closed trade in this window.";
+      } else {
+        expectancyMetaDisplay = "Break-even average per closed trade.";
+      }
+    }
+
+    // === Trades in window (count) ===
+    let tradesWindowDisplay = "--";
+    let tradesWindowMetaDisplay =
+      "No closed trades in this window.";
+
+    if (totalTrades > 0) {
+      tradesWindowDisplay = String(totalTrades);
+      tradesWindowMetaDisplay =
+        "Closed trades used for winrate, PF, expectancy.";
     }
 
     statusEl.textContent = "OK · Response received.";
@@ -2540,6 +2610,42 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
     if (pfMetaEl) {
       pfMetaEl.textContent = profitFactorMetaDisplay;
     }
+
+    // === [FE BLOCK #3F] Apply Expectancy / trade ============================
+    const expectancyValueEl = document.getElementById("expectancyValue");
+    const expectancyMetaEl  = document.getElementById("expectancyMeta");
+
+    if (expectancyValueEl) {
+      expectancyValueEl.textContent = expectancyDisplay;
+
+      // Color by sign
+      expectancyValueEl.style.color = "#ffffff";
+      if (expectancyPerTrade !== null) {
+        if (expectancyPerTrade > 0) {
+          expectancyValueEl.style.color = "var(--success)";
+        } else if (expectancyPerTrade < 0) {
+          expectancyValueEl.style.color = "var(--danger)";
+        } else {
+          expectancyValueEl.style.color = "var(--muted)";
+        }
+      }
+    }
+
+    if (expectancyMetaEl) {
+      expectancyMetaEl.textContent = expectancyMetaDisplay;
+    }
+
+    // === [FE BLOCK #3G] Apply Trades in window ==============================
+    const tradesWindowValueEl = document.getElementById("tradesWindowValue");
+    const tradesWindowMetaEl  = document.getElementById("tradesWindowMeta");
+
+    if (tradesWindowValueEl) {
+      tradesWindowValueEl.textContent = tradesWindowDisplay;
+    }
+    if (tradesWindowMetaEl) {
+      tradesWindowMetaEl.textContent = tradesWindowMetaDisplay;
+    }
+
 
     // 🔹 Directional bias (closed trades)
     updateDirectionalBias(data);
