@@ -607,18 +607,18 @@
             </div>
           </div>
         
-          <!-- Right box: Reserved for future metric -->
+          <!-- Right box: Sharpe (trade-level) -->
           <div style="flex:1; padding:8px 10px;">
             <div class="mini-label" style="color:#ffffff !important; margin-bottom:4px;">
-              <span style="font-weight:600;">Reserved</span>
+              <span style="font-weight:600;">Sharpe</span>
             </div>
-            <div id="reservedValue"
-                 style="font-size:0.95rem; font-weight:600; color:#6b6b6b;">
+            <div id="sharpeValue"
+                 style="font-size:0.95rem; font-weight:600; color:#ffffff;">
               --
             </div>
-            <div id="reservedMeta"
+            <div id="sharpeMeta"
                  style="font-size:0.78rem; color:var(--muted); margin-top:2px;">
-              <!-- intentionally empty -->
+              Trade-level Sharpe over closed trades in this window.
             </div>
           </div>
         
@@ -2352,6 +2352,11 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
         ? analytics.expectancyPerTrade
         : null;
 
+    const sharpeRaw =
+      typeof analytics.sharpe === "number"
+        ? analytics.sharpe
+        : null;
+
     // All-time stats (independent of current window)
     const avgHoldTimeMsAllTime = analytics.averageHoldTimeMsAllTime;
     const totalTradesAllTime   = analytics.totalTradesAllTime ?? null;
@@ -2380,6 +2385,27 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       } else {
         profitFactorMetaDisplay =
           "Unprofitable over closed trades in this window";
+      }
+    }
+
+    // === Sharpe (trade-level) display ===
+    let sharpeDisplay = "--";
+    let sharpeMetaDisplay =
+      "Needs at least 2 closed trades in this window.";
+
+    if (sharpeRaw !== null) {
+      const rounded = Math.round(sharpeRaw * 100) / 100; // 2 decimals
+      sharpeDisplay = String(rounded);
+
+      if (sharpeRaw > 1) {
+        sharpeMetaDisplay =
+          "Positive edge with relatively consistent trade outcomes.";
+      } else if (sharpeRaw < 0) {
+        sharpeMetaDisplay =
+          "Negative edge; average trade is worse than its variability.";
+      } else {
+        sharpeMetaDisplay =
+          "Low edge relative to variability; results are noisy.";
       }
     }
 
@@ -2601,6 +2627,19 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
 
     if (expectancyMetaEl) {
       expectancyMetaEl.textContent = expectancyMetaDisplay;
+    }
+
+    // === [FE BLOCK #3G] Apply Sharpe (trade-level) ==========================
+    const sharpeValueEl = document.getElementById("sharpeValue");
+    const sharpeMetaEl  = document.getElementById("sharpeMeta");
+
+    if (sharpeValueEl) {
+      sharpeValueEl.textContent = sharpeDisplay;
+      // No extra coloring – keep default white
+    }
+
+    if (sharpeMetaEl) {
+      sharpeMetaEl.textContent = sharpeMetaDisplay;
     }
 
 
