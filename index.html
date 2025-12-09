@@ -2603,17 +2603,6 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
       expectancyMetaEl.textContent = expectancyMetaDisplay;
     }
 
-    // === [FE BLOCK #3G] Apply Trades in window ==============================
-    const tradesWindowValueEl = document.getElementById("tradesWindowValue");
-    const tradesWindowMetaEl  = document.getElementById("tradesWindowMeta");
-
-    if (tradesWindowValueEl) {
-      tradesWindowValueEl.textContent = tradesWindowDisplay;
-    }
-    if (tradesWindowMetaEl) {
-      tradesWindowMetaEl.textContent = tradesWindowMetaDisplay;
-    }
-
 
     // 🔹 Directional bias (closed trades)
     updateDirectionalBias(data);
