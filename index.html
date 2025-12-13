@@ -2221,17 +2221,24 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
   setDetailMode(true);
   setActiveTable("positions");
 
-  // Hardcoded Worker URL
-  let baseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "");
-  const url =
-    baseUrl +
-    "/pnlClean?account=" +
-    encodeURIComponent(account) +
-    "&period=" +
-    encodeURIComponent(period) +
-    (updateTables
-      ? "&positions=1&closed=1&entry=1&orders=1"
-      : "&positions=0&closed=0&orders=0");
+// Hardcoded Worker URL
+let baseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "");
+
+// 🔴 HARD-CODE WHALE MODE FOR NOW
+const tradeMode = "whale";
+
+const url =
+  baseUrl +
+  "/pnlClean?account=" +
+  encodeURIComponent(account) +
+  "&period=" +
+  encodeURIComponent(period) +
+  "&tradeMode=" +
+  encodeURIComponent(tradeMode) +
+  (updateTables
+    ? "&positions=1&closed=1&entry=1&orders=1"
+    : "&positions=0&closed=0&orders=0");
+
 
     statusEl.textContent = "Fetching from " + url + " …";
     statusEl.className = "status";
