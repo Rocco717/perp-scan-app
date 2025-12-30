@@ -2214,6 +2214,7 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
   if (!skipRedirect && !hasAccountInUrl) {
     currentUrl.searchParams.set("account", account);
     currentUrl.searchParams.set("period", uiRange); // store UI range in URL
+    currentUrl.searchParams.set("tradeMode", "strict");
     window.location.href = currentUrl.toString();
     return;
   }
@@ -2224,8 +2225,8 @@ async function runFetch(skipRedirect, rangeOverride, options = {}) {
 // Hardcoded Worker URL
 let baseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "");
 
-// 🔴 HARD-CODE WHALE MODE FOR NOW
-const tradeMode = "whale";
+// Default to strict (whale requires its own backfill cache)
+const tradeMode = currentUrl.searchParams.get("tradeMode") || "strict";
 
 const url =
   baseUrl +
